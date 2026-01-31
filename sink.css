@@ -1,0 +1,97 @@
+/* Logo image styling */
+.logo-img {
+    width: 90px;
+    display: block;
+    margin: 0 auto 10px auto;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    background: #f5f5f5;
+}
+/* Welcome image styling */
+.welcome-img {
+    width: 80%;
+    display: block;
+    margin: 0 auto 16px auto;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(82, 14, 14, 0.1);
+    background: #f5f5f5;
+}
+body {
+    font-family: Arial, Arial, Helvetica, sans-serif;
+    background: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+.container {
+        background: #fff;
+        padding: 32px 24px;
+        border-radius: 8px;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+        width: 90%;
+        max-width: 360px;
+        min-width: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 20px 8px;
+        max-width: 98vw;
+        min-width: unset;
+    }
+    h2 {
+        font-size: 1.3em;
+    }
+    input, button, .main-btn {
+        font-size: 15px;
+    }
+}
+h2 {
+    text-align: center;
+    margin-bottom: 1.5em;
+}
+input {
+    width: 90%;
+    padding: 11px;
+    margin: 12px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+button, .main-btn {
+    width: 80%;
+    padding: 13px;
+    background: #12f8e1;
+    color: #040403;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 10px auto 0 auto;
+    display: block;
+    text-align: center;
+    transition: background 0.2s;
+}
+button:hover, .main-btn:hover {
+    background: #95e455;
+}
+.switch-link {
+    color: #102cac;
+    cursor: pointer;
+    text-align: center;
+    display: block;
+    margin: 10px 0 0;
+}
+.hidden {
+    display: none;
+}
+.message {
+    text-align: center;
+    margin-top: 12px;
+    color: green;
+}
