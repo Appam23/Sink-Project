@@ -8,12 +8,20 @@ document.addEventListener('DOMContentLoaded', function() {
   function attachWelcomeEvents() {
     const showLoginBtn = document.getElementById('show-login');
     if (showLoginBtn) {
-      showLoginBtn.addEventListener('click', () => renderLoginForm(container, renderWelcomePageWithEvents));
+      showLoginBtn.addEventListener('click', () => renderLoginForm(container, renderWelcomePageWithEvents, renderSignupFormWithNav));
     }
     const showSignupBtn = document.getElementById('show-signup');
     if (showSignupBtn) {
-      showSignupBtn.addEventListener('click', () => renderSignupForm(container, renderWelcomePageWithEvents));
+      showSignupBtn.addEventListener('click', () => renderSignupForm(container, renderWelcomePageWithEvents, renderLoginFormWithNav));
     }
+  }
+
+  function renderSignupFormWithNav() {
+    renderSignupForm(container, renderWelcomePageWithEvents, renderLoginFormWithNav);
+  }
+
+  function renderLoginFormWithNav() {
+    renderLoginForm(container, renderWelcomePageWithEvents, renderSignupFormWithNav);
   }
 
   function renderWelcomePageWithEvents() {
