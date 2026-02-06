@@ -287,13 +287,14 @@ body {
         width: 98%;
         max-width: 600px;
         min-width: 280px;
-        min-height: 80vh;
-        height: 85vh;
+        min-height: 85vh;
+        max-height: 95vh;
         display: flex;
         flex-direction: column;
         align-items: center;
         box-sizing: border-box;
         position: relative;
+        overflow-y: auto;
 }
 
 /* Profile page main area (optional for further control) */
@@ -352,7 +353,8 @@ body {
 .home-body {
     margin-top: 16px;
     width: 100%;
-    margin-bottom: 80px;
+    margin-bottom: 120px;
+    padding-bottom: 20px;
 }
 
 .apartment-code-display {
@@ -470,10 +472,11 @@ input, .bio-input {
     transition: background 0.2s;
 }
 .profile-form {
-         margin-bottom: 70px;
+         margin-bottom: 100px;
          width: 100%;
          max-width: 100%;
          box-sizing: border-box;
+         padding-bottom: 20px;
     }
 button:hover, .main-btn:hover {
     background: #95e455;
