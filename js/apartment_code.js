@@ -1,15 +1,25 @@
 import { renderHomePage } from './home.js';
 
 export function renderApartmentCodePage(container, userName = 'You', renderBack) {
+	clearContainer(container);
+	const page = createPageStructure();
+	container.appendChild(page);
+	setupEventListeners(page, container, userName, renderBack);
+}
+
+function clearContainer(container) {
 	while (container.firstChild) {
 		container.removeChild(container.firstChild);
 	}
+}
 
+function createPageStructure() {
 	const page = document.createElement('div');
 	page.className = 'apartment-code-page';
 	page.innerHTML = `
 		<button type="button" id="back-btn">&#8592; Back</button>
 		<h2>Move into an apartment</h2>
+
 		<div class="apartment-option">
 			<h3>First to join from your apartment?</h3>
 			<p>Responsible to create apartment code.</p>
@@ -25,68 +35,105 @@ export function renderApartmentCodePage(container, userName = 'You', renderBack)
 			<div class="message" id="join-code-message"></div>
 		</div>
 	`;
+	return page;
+}
 
-	container.appendChild(page);
+function setupEventListeners(page, container, userName, renderBack) {
+	setupBackButton(page, renderBack);
+	setupCreateCodeSection(page, container, userName);
+	setupJoinCodeSection(page, container, userName);
+}
 
+function setupBackButton(page, renderBack) {
 	const backBtn = page.querySelector('#back-btn');
-	if (backBtn) {
-		backBtn.addEventListener('click', () => {
-			if (typeof renderBack === 'function') {
-				renderBack();
-			} else {
-				window.location.reload();
-			}
-		});
-	}
+	if (!backBtn) return;
 
+	backBtn.addEventListener('click', () => {
+		if (typeof renderBack === 'function') {
+			renderBack();
+		} else {
+			window.location.reload();
+		}
+	});
+}
+
+function setupCreateCodeSection(page, container, userName) {
 	const createBtn = page.querySelector('#create-apartment-code');
 	const continueBtn = page.querySelector('#continue-after-create');
 	const createdCode = page.querySelector('#created-code');
+
 	if (createBtn && createdCode) {
 		createBtn.addEventListener('click', () => {
-			const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+			const code = generateApartmentCode();
 			createdCode.textContent = `Your apartment code: ${code}`;
-			// persist new apartment with this user as first member
-			const apartmentsRaw = localStorage.getItem('apartments');
-			const apartments = apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
-			apartments[code] = apartments[code] || [];
-			if (!apartments[code].includes(userName)) apartments[code].push(userName);
-			localStorage.setItem('apartments', JSON.stringify(apartments));
-			localStorage.setItem('currentApartment', code);
-			localStorage.setItem('currentUser', userName);
-		});
-	}
-	if (continueBtn) {
-		continueBtn.addEventListener('click', () => {
-			const txt = createdCode.textContent || '';
-			const m = txt.match(/([A-Z0-9]{6})/);
-			const code = m ? m[1] : localStorage.getItem('currentApartment');
-			renderHomePage(container, userName, code);
+			saveNewApartment(code, userName);
 		});
 	}
 
+	if (continueBtn) {
+		continueBtn.addEventListener('click', () => {
+			const code = extractCodeFromMessage(createdCode.textContent);
+			if (code) {
+				renderHomePage(container, userName, code);
+			}
+		});
+	}
+}
+
+function setupJoinCodeSection(page, container, userName) {
 	const joinBtn = page.querySelector('#join-apartment-btn');
 	const joinInput = page.querySelector('#join-apartment-code');
 	const joinMessage = page.querySelector('#join-code-message');
-	if (joinBtn && joinInput && joinMessage) {
-		joinBtn.addEventListener('click', () => {
-			const code = joinInput.value.trim().toUpperCase();
-			if (!code) {
-				joinMessage.textContent = 'Please enter a code.';
-				return;
-			}
-			const apartmentsRaw = localStorage.getItem('apartments');
-			const apartments = apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
-			if (!apartments[code]) {
-				joinMessage.textContent = 'Apartment code not found.';
-				return;
-			}
-			if (!apartments[code].includes(userName)) apartments[code].push(userName);
-			localStorage.setItem('apartments', JSON.stringify(apartments));
-			localStorage.setItem('currentApartment', code);
-			localStorage.setItem('currentUser', userName);
-			joinMessage.textContent = `Joining apartment with code: ${code}`;
-			renderHomePage(container, userName, code);
-		});
+
+	if (!joinBtn || !joinInput || !joinMessage) return;
+
+	joinBtn.addEventListener('click', () => {
+		const code = joinInput.value.trim().toUpperCase();
+
+		if (!code) {
+			joinMessage.textContent = 'Please enter a code.';
+			return;
+		}
+
+		const apartments = getApartments();
+		if (!apartments[code]) {
+			joinMessage.textContent = 'Apartment code not found.';
+			return;
+		}
+
+		if (!apartments[code].includes(userName)) {
+			apartments[code].push(userName);
+		}
+		localStorage.setItem('apartments', JSON.stringify(apartments));
+		localStorage.setItem('currentApartment', code);
+		localStorage.setItem('currentUser', userName);
+
+		joinMessage.textContent = `Joining apartment with code: ${code}`;
+		renderHomePage(container, userName, code);
+	});
+}
+
+function generateApartmentCode() {
+	return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function saveNewApartment(code, userName) {
+	const apartments = getApartments();
+	apartments[code] = apartments[code] || [];
+	if (!apartments[code].includes(userName)) {
+		apartments[code].push(userName);
 	}
+	localStorage.setItem('apartments', JSON.stringify(apartments));
+	localStorage.setItem('currentApartment', code);
+	localStorage.setItem('currentUser', userName);
+}
+
+function getApartments() {
+	const apartmentsRaw = localStorage.getItem('apartments');
+	return apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
+}
+
+function extractCodeFromMessage(message) {
+	const match = message.match(/([A-Z0-9]{6})/);
+	return match ? match[1] : localStorage.getItem('currentApartment');
 }
