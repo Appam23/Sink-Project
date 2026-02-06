@@ -495,3 +495,137 @@ button:hover, .main-btn:hover {
     margin-top: 12px;
     color: green;
 }
+
+/* Apartment code page styles */
+.apartment-code-page {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.apartment-code-page h2 {
+    margin-bottom: 0.5em;
+    color: #222;
+    font-size: 1.8em;
+}
+
+.apartment-option {
+    width: 100%;
+    background: linear-gradient(135deg, #f7fbff 0%, #f0f8ff 100%);
+    border: 2px solid #d4e8f7;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(18, 248, 225, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.apartment-option:hover {
+    box-shadow: 0 6px 24px rgba(18, 248, 225, 0.15);
+    border-color: #12f8e1;
+    transform: translateY(-2px);
+}
+
+.apartment-option h3 {
+    margin: 0;
+    color: #0a5c4a;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.apartment-option p {
+    margin: 0 0 8px 0;
+    color: #4a6b7a;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.apartment-option .main-btn {
+    width: 100%;
+    max-width: none;
+    margin: 8px 0;
+    background: #47d9ca;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 1em;
+    font-weight: 500;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 10px rgba(71, 217, 202, 0.2);
+}
+
+.apartment-option .main-btn:hover {
+    background: #35c4b8;
+    box-shadow: 0 5px 16px rgba(71, 217, 202, 0.35);
+    transform: translateY(-1px);
+}
+
+.apartment-option .main-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(71, 217, 202, 0.2);
+}
+
+.apartment-option input {
+    width: 100%;
+    max-width: none;
+    padding: 12px;
+    border: 1.5px solid #a8dcd1;
+    background: #f5fcfb;
+    color: #222;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.apartment-option input:focus {
+    outline: none;
+    border-color: #12f8e1;
+    background: #fff;
+    box-shadow: 0 0 8px rgba(18, 248, 225, 0.2);
+}
+
+.apartment-option input::placeholder {
+    color: #999;
+}
+
+.apartment-option .message {
+    margin-top: 8px;
+    font-weight: 600;
+    font-size: 0.95em;
+    animation: slideIn 0.3s ease;
+}
+
+.apartment-option .message:empty {
+    display: none;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
