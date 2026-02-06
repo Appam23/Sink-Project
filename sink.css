@@ -293,7 +293,9 @@ body {
         flex-direction: column;
         align-items: center;
         box-sizing: border-box;
-    position: relative;
+        position: relative;
+}
+
 /* Profile page main area (optional for further control) */
 .profile-page {
     width: 100%;
@@ -301,6 +303,140 @@ body {
     box-sizing: border-box;
     flex: 1 1 auto;
 }
+
+/* Home page styles */
+.home-page {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    position: relative;
+}
+
+.home-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.home-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.home-profile-pic img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.home-right {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    width: 50%;
+}
+
+.home-username {
+    font-size: 1.6em;
+    font-weight: 600;
+    align-self: flex-start;
+    margin-top: 8px;
+}
+
+.home-body {
+    margin-top: 16px;
+    width: 100%;
+    margin-bottom: 80px;
+}
+
+.apartment-code-display {
+    background: #f7f7f7;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+.roommates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.roommate-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.roommate-pic {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.roommate-name {
+    font-weight: 500;
+}
+
+.logout-bottom-right {
+    position: absolute;
+    right: 24px;
+    bottom: 92px;
+    z-index: 30;
+}
+
+.main-btn.small {
+    padding: 6px 10px;
+    font-size: 0.9em;
+}
+
+.no-roommates {
+    text-align: center;
+    color: #999;
+    padding: 10px;
+}
+
+.main-btn {
+    width: 50%;
+    max-width: 420px;
+    margin: 20px auto 50px auto;
+    background: #47d9ca;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    border: none;
+    cursor: pointer;
+    padding: 10px 0;
+    transition: background 0.2s;
+}
+
+.quit-btn {
+    background: #ff6b6b;
+    padding: 8px 16px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    color: white;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.quit-btn:hover {
+    background: #ff5252;
 }
 
 @media (max-width: 480px) {
