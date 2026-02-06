@@ -1,4 +1,4 @@
-import { renderProfilePage } from './profile.js';
+import { renderHomePage } from './home.js';
 export function renderLoginForm(container, renderWelcomePageWithEvents, renderSignupForm) {
   while (container.firstChild) {
     container.removeChild(container.firstChild);
@@ -21,7 +21,8 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
       // For now, just use the entered email as the user name
       const email = document.getElementById('login-email').value.trim();
       if (email) {
-        renderProfilePage(container, email);
+        localStorage.setItem('currentUser', email);
+        renderHomePage(container, email);
       } else {
         document.getElementById('login-message').innerText = 'Please enter your email.';
       }

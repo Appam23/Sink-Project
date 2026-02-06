@@ -293,6 +293,7 @@ body {
         flex-direction: column;
         align-items: center;
         box-sizing: border-box;
+    position: relative;
 /* Profile page main area (optional for further control) */
 .profile-page {
     width: 100%;
@@ -357,59 +358,4 @@ button:hover, .main-btn:hover {
     text-align: center;
     margin-top: 12px;
     color: green;
-}
-
-/* Apartment code page styles */
-.apartment-code-page {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    align-items: center;
-}
-
-.apartment-code-page h2 {
-    margin-bottom: 0.5em;
-}
-
-.apartment-option {
-    width: 100%;
-    background: #f7fbff;
-    border: 1px solid #e1eefc;
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    box-sizing: border-box;
-}
-
-.apartment-option h3 {
-    margin: 0 0 4px 0;
-}
-
-.apartment-option p {
-    margin: 0 0 6px 0;
-    color: #3b4a5a;
-}
-
-.apartment-option .main-btn {
-    width: 90%;
-    max-width: 420px;
-    margin: 6px auto 0 auto;
-}
-
-.apartment-option input {
-    width: 90%;
-    max-width: 420px;
-}
-
-.apartment-option .message {
-    font-weight: 600;
-    color: #1a7f4b;
-}
-
-.apartment-option .message:empty {
-    display: none;
 }

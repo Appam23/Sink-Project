@@ -1,4 +1,4 @@
-import { renderProfilePage } from './profile.js';
+import { renderHomePage } from './home.js';
 
 export function renderApartmentCodePage(container, userName = 'You', renderBack) {
 	while (container.firstChild) {
@@ -46,11 +46,22 @@ export function renderApartmentCodePage(container, userName = 'You', renderBack)
 		createBtn.addEventListener('click', () => {
 			const code = Math.random().toString(36).slice(2, 8).toUpperCase();
 			createdCode.textContent = `Your apartment code: ${code}`;
+			// persist new apartment with this user as first member
+			const apartmentsRaw = localStorage.getItem('apartments');
+			const apartments = apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
+			apartments[code] = apartments[code] || [];
+			if (!apartments[code].includes(userName)) apartments[code].push(userName);
+			localStorage.setItem('apartments', JSON.stringify(apartments));
+			localStorage.setItem('currentApartment', code);
+			localStorage.setItem('currentUser', userName);
 		});
 	}
 	if (continueBtn) {
 		continueBtn.addEventListener('click', () => {
-			renderProfilePage(container, userName);
+			const txt = createdCode.textContent || '';
+			const m = txt.match(/([A-Z0-9]{6})/);
+			const code = m ? m[1] : localStorage.getItem('currentApartment');
+			renderHomePage(container, userName, code);
 		});
 	}
 
@@ -59,13 +70,23 @@ export function renderApartmentCodePage(container, userName = 'You', renderBack)
 	const joinMessage = page.querySelector('#join-code-message');
 	if (joinBtn && joinInput && joinMessage) {
 		joinBtn.addEventListener('click', () => {
-			const code = joinInput.value.trim();
+			const code = joinInput.value.trim().toUpperCase();
 			if (!code) {
 				joinMessage.textContent = 'Please enter a code.';
 				return;
 			}
+			const apartmentsRaw = localStorage.getItem('apartments');
+			const apartments = apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
+			if (!apartments[code]) {
+				joinMessage.textContent = 'Apartment code not found.';
+				return;
+			}
+			if (!apartments[code].includes(userName)) apartments[code].push(userName);
+			localStorage.setItem('apartments', JSON.stringify(apartments));
+			localStorage.setItem('currentApartment', code);
+			localStorage.setItem('currentUser', userName);
 			joinMessage.textContent = `Joining apartment with code: ${code}`;
-			renderProfilePage(container, userName);
+			renderHomePage(container, userName, code);
 		});
 	}
 }
