@@ -1,5 +1,3 @@
-import { renderApartmentCodePage } from './apartment_code.js';
-
 export function renderProfilePage(container, userName = 'You') {
   // Clear container
   container.innerHTML = '';
@@ -36,10 +34,46 @@ export function renderProfilePage(container, userName = 'You') {
   `;
   container.appendChild(profileDiv);
 
+  // Profile picture elements (ensure available before submit handler)
+  const picInput = profileDiv.querySelector('#profile-pic-input');
+  const picPreview = profileDiv.querySelector('#profile-pic-preview');
+  const iconSpan = profileDiv.querySelector('#profile-pic-icon');
+
+  // Prefill from stored profiles if available
+  const currentUserKey = localStorage.getItem('currentUser') || userName;
+  const profilesRaw = localStorage.getItem('profiles');
+  const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
+  const existing = profiles[currentUserKey] || {};
+  if (existing) {
+    const first = existing.firstName || '';
+    const last = existing.lastName || '';
+    const age = existing.age || '';
+    const apt = existing.apartmentNo || '';
+    const room = existing.roomNumber || '';
+    const phone = existing.phone || '';
+    const bio = existing.bio || '';
+    document.getElementById('first-name').value = first;
+    document.getElementById('last-name').value = last;
+    document.getElementById('age').value = age;
+    document.getElementById('Apartment-No').value = apt;
+    document.getElementById('Room-Number').value = room;
+    document.getElementById('Phone-Number').value = phone;
+    document.getElementById('Bio').value = bio;
+    if (existing.picture) {
+      picPreview.src = existing.picture;
+      if (iconSpan) iconSpan.style.display = 'none';
+    }
+  }
+
   const backToApartmentBtn = profileDiv.querySelector('#back-to-apartment-btn');
   if (backToApartmentBtn) {
-    backToApartmentBtn.addEventListener('click', () => {
-      renderApartmentCodePage(container, userName);
+    backToApartmentBtn.addEventListener('click', async () => {
+      const cur = localStorage.getItem('currentUser') || userName;
+      const curApartment = localStorage.getItem('currentApartment') || null;
+      const mod = await import('./home.js');
+      if (mod && typeof mod.renderHomePage === 'function') {
+        mod.renderHomePage(container, cur, curApartment);
+      }
     });
   }
 
@@ -48,6 +82,22 @@ export function renderProfilePage(container, userName = 'You') {
     profileForm.addEventListener('submit', (event) => {
       event.preventDefault();
       if (profileForm.checkValidity()) {
+        // gather profile data and save to localStorage
+        const profileData = {
+          firstName: document.getElementById('first-name').value.trim(),
+          lastName: document.getElementById('last-name').value.trim(),
+          age: document.getElementById('age').value.trim(),
+          apartmentNo: document.getElementById('Apartment-No').value.trim(),
+          roomNumber: document.getElementById('Room-Number').value.trim(),
+          phone: document.getElementById('Phone-Number').value.trim(),
+          bio: document.getElementById('Bio').value.trim(),
+          picture: picPreview ? picPreview.src : ''
+        };
+        const currentUser = localStorage.getItem('currentUser') || userName;
+        const profilesRaw2 = localStorage.getItem('profiles');
+        const profiles2 = profilesRaw2 ? JSON.parse(profilesRaw2) : {};
+        profiles2[currentUser] = profileData;
+        localStorage.setItem('profiles', JSON.stringify(profiles2));
         alert('Profile saved successfully!');
       } else {
         profileForm.reportValidity();
@@ -69,9 +119,7 @@ export function renderProfilePage(container, userName = 'You') {
     });
   }
 
-  // Profile picture upload/preview
-  const picInput = profileDiv.querySelector('#profile-pic-input');
-  const picPreview = profileDiv.querySelector('#profile-pic-preview');
+  // Profile picture upload/preview (picInput and picPreview declared above)
   if (picInput && picPreview) {
     picInput.addEventListener('change', function (e) {
       const file = e.target.files[0];
@@ -79,24 +127,18 @@ export function renderProfilePage(container, userName = 'You') {
         const reader = new FileReader();
         reader.onload = function (ev) {
           picPreview.src = ev.target.result;
+          if (iconSpan) iconSpan.style.display = 'none';
         };
         reader.readAsDataURL(file);
       }
     });
-    const uploadBtn = profileDiv.querySelector('.upload-btn');
-    if (uploadBtn) {
-      uploadBtn.addEventListener('click', function (e) {
+    const uploadBtn2 = profileDiv.querySelector('.upload-btn');
+    if (uploadBtn2) {
+      uploadBtn2.addEventListener('click', function (e) {
         e.preventDefault();
         picInput.click();
       });
     }
-    // Hide icon when image is uploaded
-    picInput.addEventListener('change', function () {
-      const iconSpan = profileDiv.querySelector('#profile-pic-icon');
-      if (picPreview.src) {
-        iconSpan.style.display = 'none';
-      }
-    });
   }
 
  

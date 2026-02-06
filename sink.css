@@ -293,6 +293,7 @@ body {
         flex-direction: column;
         align-items: center;
         box-sizing: border-box;
+    position: relative;
 /* Profile page main area (optional for further control) */
 .profile-page {
     width: 100%;
@@ -358,3 +359,80 @@ button:hover, .main-btn:hover {
     margin-top: 12px;
     color: green;
 }
+
+/* Home page styles */
+.home-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    align-items: flex-start;
+}
+.home-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.home-profile-pic img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+.home-right {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    width: 50%;
+}
+.home-username {
+    font-size: 1.6em;
+    font-weight: 600;
+    align-self: flex-start;
+    margin-top: 8px; /* roughly top 30% visual placement */
+}
+.home-body {
+    margin-top: 16px;
+    width: 100%;
+}
+.apartment-code-display {
+    background: #f7f7f7;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+.roommates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.roommate-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.roommate-pic {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.roommate-name {
+    font-weight: 500;
+}
+.logout-bottom-right {
+    position: absolute;
+    right: 24px;
+    /* place above the bottom nav/footer */
+    bottom: 92px;
+    z-index: 30;
+}
+.main-btn.small {
+    padding: 6px 10px;
+    font-size: 0.9em;
+}
+
