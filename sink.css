@@ -401,6 +401,7 @@ body {
 .main-btn.small {
     padding: 6px 10px;
     font-size: 0.9em;
+    min-width: 70px;
 }
 
 .no-roommates {
@@ -631,4 +632,221 @@ button:hover, .main-btn:hover {
         opacity: 1;
         transform: translateX(0);
     }
+}
+/* Calendar page styles */
+.calendar-page {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-page h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #222;
+}
+
+.events-list {
+    flex: 1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 12px;
+    margin-bottom: 100px;
+    padding-right: 10px;
+    overflow-y: auto;
+    max-height: 60vh;
+}
+
+@media (min-width: 700px) {
+    .events-list {
+        grid-template-columns: repeat(1, 1fr);
+    }
+}
+
+.event-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 80px;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    transition: all 0.2s ease;
+}
+
+.event-row:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    background: #fff;
+}
+
+.event-date {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #47d9ca;
+    text-align: center;
+}
+
+.event-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.event-name {
+    font-weight: 600;
+    color: #222;
+    font-size: 1em;
+}
+
+.event-location {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.event-time {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #47d9ca;
+    text-align: right;
+}
+
+.no-events {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    grid-column: 1 / -1;
+}
+
+.add-event-btn {
+    position: absolute;
+    right: 24px;
+    bottom: 92px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #47d9ca;
+    color: white;
+    border: none;
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(71, 217, 202, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 25;
+    transition: all 0.2s ease;
+}
+
+.add-event-btn:hover {
+    background: #35c4b8;
+    box-shadow: 0 6px 16px rgba(71, 217, 202, 0.4);
+    transform: scale(1.1);
+}
+
+.add-event-btn:active {
+    transform: scale(0.95);
+}
+
+/* Event modal styles */
+.event-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.event-modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    position: relative;
+}
+
+.event-modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: #222;
+    text-align: center;
+}
+
+.close-modal {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #999;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: #222;
+}
+
+#event-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#event-form label {
+    font-weight: 600;
+    color: #222;
+    font-size: 0.95em;
+    margin-top: 8px;
+}
+
+#event-form input[type="text"],
+#event-form input[type="date"],
+#event-form input[type="time"],
+#event-form select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    background: #f5f5f5;
+    color: #222;
+    border-radius: 6px;
+    font-size: 1em;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+#event-form input:focus,
+#event-form select:focus {
+    outline: none;
+    background: white;
+    border-color: #47d9ca;
+    box-shadow: 0 0 8px rgba(71, 217, 202, 0.2);
+}
+
+#event-form .main-btn {
+    width: 100%;
+    max-width: none;
+    margin: 16px 0 0 0;
+    padding: 12px;
 }
