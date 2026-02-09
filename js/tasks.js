@@ -226,6 +226,17 @@ export function renderTasksPage(container) {
       const list = rooms[task.room] || rooms['Other'];
       list.appendChild(row);
     });
+
+    // For each room, if no tasks were appended, show a helpful message
+    Object.keys(rooms).forEach((roomName) => {
+      const list = rooms[roomName];
+      if (!list.hasChildNodes()) {
+        const msg = document.createElement('div');
+        msg.className = 'no-tasks';
+        msg.textContent = 'no tasks yet';
+        list.appendChild(msg);
+      }
+    });
   }
 
   // Add button (single floating) — open modal when clicked
