@@ -103,3 +103,10 @@ document.getElementById("add-details-form").addEventListener("submit", function 
     // Clear the form
     e.target.reset();
 });
+
+document.getElementById("footer-message").addEventListener("click", async () => {
+  const mod = await import('./group_chat.js');
+  if (mod && typeof mod.renderGroupChatPage === 'function') {
+    mod.renderGroupChatPage(document.querySelector('.container'));
+  }
+});

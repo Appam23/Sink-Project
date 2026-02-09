@@ -85,6 +85,14 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
     });
   }
 
+  // Wire up footer message button
+  footer.querySelector('#footer-message').addEventListener('click', async () => {
+    const mod = await import('./group_chat.js');
+    if (mod && typeof mod.renderGroupChatPage === 'function') {
+      mod.renderGroupChatPage(container, userName);
+    }
+  });
+
   // Set username
   const usernameEl = page.querySelector('#home-username');
   if (usernameEl) usernameEl.textContent = userName;
