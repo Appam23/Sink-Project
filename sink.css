@@ -59,14 +59,15 @@
     display: flex;
     justify-content: space-around;
     align-items: center;
+    /* Let the footer sit as a normal flex child at the bottom of the container */
     position: relative;
-    left: 0;
-    right: 0;
-    bottom: 0;
     width: 100%;
     background: #fff;
     border-top: 1px solid #e0e0e0;
-    padding: 8px 0 6px 0;
+    padding: 8px 0;
+    height: 56px;
+    box-sizing: border-box;
+    margin-top: auto;
     z-index: 10;
 }
 
@@ -280,8 +281,9 @@ body {
     height: 100vh;
 }
 .container {
-        background: hsl(0, 100%, 99%);
-        padding: 32px 24px;
+    background: hsl(0, 100%, 99%);
+    /* ensure at least 20px between content and footer */
+    padding: 32px 24px 0px;
         border-radius: 8px;
         box-shadow: 0 6px 24px rgba(0,0,0,0.15);
         width: 98%;
@@ -353,7 +355,7 @@ body {
 .home-body {
     margin-top: 16px;
     width: 100%;
-    margin-bottom: 120px;
+    margin-bottom: 50px;
     padding-bottom: 20px;
 }
 
@@ -748,6 +750,7 @@ button:hover, .main-btn:hover {
     border-radius: 8px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     transition: all 0.2s ease;
+    margin: 20px 0;
 }
 
 .event-row:hover {
@@ -817,6 +820,12 @@ button:hover, .main-btn:hover {
     color: #999;
     padding: 20px;
     grid-column: 1 / -1;
+}
+
+.no-tasks {
+    text-align: center;
+    color: #999;
+    padding: 10px 6px;
 }
 
 .add-event-btn {
@@ -1002,6 +1011,7 @@ button:hover, .main-btn:hover {
     height: 32px;
     border-radius: 50%;
     margin: 0 10px;
+    object-fit: cover;
 }
 
 .message-content {

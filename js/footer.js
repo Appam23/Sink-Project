@@ -48,11 +48,16 @@ export function attachFooter(container) {
   const msgBtn = footer.querySelector('#footer-message');
   if (msgBtn) {
     msgBtn.addEventListener('click', async () => {
-      // Route message to profile for now
-      const mod = await import('./profile.js');
-      const cur = localStorage.getItem('currentUser');
-      if (mod && typeof mod.renderProfilePage === 'function') {
-        mod.renderProfilePage(container, cur);
+      try {
+        const mod = await import('./group_chat.js');
+        const cur = localStorage.getItem('currentUser');
+        if (mod && typeof mod.renderGroupChatPage === 'function') {
+          mod.renderGroupChatPage(container, cur);
+        } else {
+          console.error('group_chat module missing renderGroupChatPage');
+        }
+      } catch (err) {
+        console.error('Failed to open group chat from footer:', err);
       }
     });
   }
