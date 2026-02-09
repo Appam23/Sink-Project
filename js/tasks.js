@@ -1,0 +1,309 @@
+// tasks.js
+
+export function renderTasksPage(container) {
+  container.innerHTML = '';
+
+  const currentUser = localStorage.getItem('currentUser') || 'You';
+
+  // Find current apartment code and members
+  const apartmentsRaw = localStorage.getItem('apartments');
+  const apartments = apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
+  let apartmentCode = localStorage.getItem('currentApartment') || null;
+  let members = [];
+  if (!apartmentCode) {
+    for (const k of Object.keys(apartments)) {
+      const arr = apartments[k] || [];
+      if (arr.includes(currentUser)) {
+        apartmentCode = k;
+        members = arr;
+        break;
+      }
+    }
+  } else {
+    members = apartments[apartmentCode] || [];
+  }
+
+  if (members && !members.includes(currentUser)) members.push(currentUser);
+
+  const page = document.createElement('div');
+  page.className = 'tasks-page';
+  page.innerHTML = `
+    <div class="tasks-header">
+      <h2>Tasks / Chores</h2>
+      <div class="tasks-subtitle">Apartment: ${apartmentCode || 'No apartment'}</div>
+    </div>
+    <div class="tasks-body">
+      <div class="task-column" data-room="Kitchen">
+        <div class="task-column-header"><h3>Kitchen</h3></div>
+        <div class="task-list" id="kitchen-list"></div>
+      </div>
+
+      <div class="task-column" data-room="Living Room">
+        <div class="task-column-header"><h3>Living Room</h3></div>
+        <div class="task-list" id="livingroom-list"></div>
+      </div>
+
+      <div class="task-column" data-room="Bathroom">
+        <div class="task-column-header"><h3>Bathroom</h3></div>
+        <div class="task-list" id="bathroom-list"></div>
+      </div>
+
+      <div class="task-column" data-room="Other">
+        <div class="task-column-header"><h3>Other</h3></div>
+        <div class="task-list" id="other-list"></div>
+      </div>
+    </div>
+    <button id="add-task-btn" class="add-event-btn" title="Add Task">+</button>
+  `;
+
+  container.appendChild(page);
+
+  // Modal for adding tasks (reuse event modal styles)
+  const modal = document.createElement('div');
+  modal.className = 'event-modal hidden';
+  modal.innerHTML = `
+    <div class="event-modal-content">
+      <button id="close-modal" class="close-modal">&times;</button>
+      <h3>Add Task</h3>
+      <form id="event-form">
+        <label>Task Name:</label>
+        <input type="text" id="task-name" placeholder="Task name" required />
+
+        <label>Date:</label>
+        <input type="date" id="task-date" required />
+
+        <label>Time:</label>
+        <input type="time" id="task-time" required />
+
+        <label>Room:</label>
+        <select id="task-room" required>
+          <option value="">Select a room</option>
+          <option value="Kitchen">Kitchen</option>
+          <option value="Living Room">Living Room</option>
+          <option value="Bathroom">Bathroom</option>
+          <option value="Other">Other</option>
+          <option value="Custom">Custom</option>
+        </select>
+
+        <input type="text" id="task-custom-room" placeholder="Enter custom room name" style="display:none;" />
+
+        <label>Assign to:</label>
+        <select id="task-assignee"></select>
+
+        <label>Image (optional):</label>
+        <input type="file" id="task-image" accept="image/*" />
+        <img id="task-image-preview" src="" alt="preview" style="display:none; max-width:100%; margin-top:8px; border-radius:6px;" />
+
+        <button type="submit" class="main-btn">Create</button>
+      </form>
+    </div>
+  `;
+  container.appendChild(modal);
+
+  // Build assignee options
+  const assigneeSelect = modal.querySelector('#task-assignee');
+  assigneeSelect.innerHTML = '';
+  const everyoneOpt = document.createElement('option');
+  everyoneOpt.value = 'Everyone';
+  everyoneOpt.textContent = 'Everyone';
+  assigneeSelect.appendChild(everyoneOpt);
+
+  const uniqueMembers = Array.from(new Set(members || []));
+  uniqueMembers.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    assigneeSelect.appendChild(opt);
+  });
+
+  // Image upload handling
+  const imageInput = modal.querySelector('#task-image');
+  let imageData = null;
+  const imagePreview = modal.querySelector('#task-image-preview');
+  if (imageInput) {
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          imageData = ev.target.result;
+          if (imagePreview) {
+            imagePreview.src = imageData;
+            imagePreview.style.display = 'block';
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        imageData = null;
+        if (imagePreview) imagePreview.style.display = 'none';
+      }
+    });
+  }
+
+  // Tasks storage helper
+  const storageKey = `tasks_${apartmentCode || 'no_apartment'}`;
+
+  function loadTasks() {
+    const raw = localStorage.getItem(storageKey);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  function saveTasks(arr) {
+    localStorage.setItem(storageKey, JSON.stringify(arr));
+  }
+
+  function createTask(room, title, date, time, assignee, image) {
+    const tasks = loadTasks();
+    const id = Date.now();
+    tasks.push({ id, room, title, date, time, assignee, image: image || null });
+    saveTasks(tasks);
+    renderTasks();
+  }
+
+  function toggleComplete(id) {
+    // Deprecated: tasks are removed on completion. Use deleteTask instead.
+    deleteTask(id);
+  }
+
+  function deleteTask(id) {
+    let tasks = loadTasks();
+    tasks = tasks.filter(x => x.id !== id);
+    saveTasks(tasks);
+    renderTasks();
+  }
+
+  function showImageModal(src) {
+    if (!src) return;
+    const m = document.createElement('div');
+    m.className = 'event-modal';
+    m.innerHTML = `
+      <div class="event-modal-content">
+        <button id="close-img-modal" class="close-modal">&times;</button>
+        <img src="${src}" class="image-view" alt="Task image" />
+      </div>
+    `;
+    container.appendChild(m);
+    const closeBtn = m.querySelector('#close-img-modal');
+    if (closeBtn) closeBtn.addEventListener('click', () => m.remove());
+    m.addEventListener('click', (e) => { if (e.target === m) m.remove(); });
+  }
+
+  function renderTasks() {
+    const tasks = loadTasks();
+    const rooms = {
+      'Kitchen': page.querySelector('#kitchen-list'),
+      'Living Room': page.querySelector('#livingroom-list'),
+      'Bathroom': page.querySelector('#bathroom-list'),
+      'Other': page.querySelector('#other-list'),
+    };
+
+    Object.values(rooms).forEach(r => r.innerHTML = '');
+
+    tasks.forEach(task => {
+      const row = document.createElement('div');
+      row.className = 'event-row task-row';
+      const thumbHtml = task.image ? `<img class="task-thumb" src="${task.image}" alt="thumb"/>` : '';
+      const viewBtnHtml = task.image ? `<button class="view-btn">View</button>` : '';
+      row.innerHTML = `
+        <div class="event-date"><div class="due-label">Due by</div><div class="due-date">${task.date}</div></div>
+        <div class="event-details">
+          ${thumbHtml}
+          <div class="event-name">${task.title}</div>
+          <div class="event-location">${task.room} • ${task.assignee}</div>
+        </div>
+        <div class="event-time">
+          ${task.time}
+          <div style="margin-top:8px;">${viewBtnHtml} <button class="complete-btn">Complete</button></div>
+        </div>
+      `;
+
+      const btn = row.querySelector('.complete-btn');
+      btn.addEventListener('click', () => deleteTask(task.id));
+
+      const viewBtn = row.querySelector('.view-btn');
+      if (viewBtn) viewBtn.addEventListener('click', () => showImageModal(task.image));
+
+      const list = rooms[task.room] || rooms['Other'];
+      list.appendChild(row);
+    });
+  }
+
+  // Add button (single floating) — open modal when clicked
+  let lastRoom = 'Other';
+  const addBtn = page.querySelector('#add-task-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      // reset modal fields
+      modal.querySelector('#task-name').value = '';
+      modal.querySelector('#task-date').value = '';
+      modal.querySelector('#task-time').value = '';
+      modal.querySelector('#task-room').value = lastRoom;
+      modal.querySelector('#task-custom-room').style.display = 'none';
+      modal.querySelector('#task-custom-room').required = false;
+      modal.querySelector('#task-assignee').value = currentUser;
+      // reset image input/preview
+      if (imageInput) {
+        imageInput.value = '';
+        imageData = null;
+      }
+      if (imagePreview) imagePreview.style.display = 'none';
+      modal.classList.remove('hidden');
+    });
+  }
+
+  // Modal close button hides modal
+  const closeBtn = modal.querySelector('#close-modal');
+  if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+  // Show/hide custom room input
+  const roomSelect = modal.querySelector('#task-room');
+  const customRoomInput = modal.querySelector('#task-custom-room');
+  if (roomSelect && customRoomInput) {
+    roomSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'Custom') {
+        customRoomInput.style.display = 'block';
+        customRoomInput.required = true;
+      } else {
+        customRoomInput.style.display = 'none';
+        customRoomInput.required = false;
+      }
+    });
+  }
+
+  // Handle form submit (uses event-form id for consistent styling)
+  const form = modal.querySelector('#event-form');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = modal.querySelector('#task-name').value.trim();
+    const date = modal.querySelector('#task-date').value;
+    const time = modal.querySelector('#task-time').value;
+    let room = modal.querySelector('#task-room').value;
+    const custom = modal.querySelector('#task-custom-room').value.trim();
+    const assignee = modal.querySelector('#task-assignee').value;
+    if (room === 'Custom') room = custom || 'Other';
+
+    // Format date and time for display similar to calendar
+    const dateObj = new Date(date);
+    const displayDate = isNaN(dateObj.getTime()) ? date : ((dateObj.getMonth() + 1).toString().padStart(2, '0') + '/' + dateObj.getDate().toString().padStart(2, '0'));
+    const timeObj = new Date(`2000-01-01T${time}`);
+    const displayTime = isNaN(timeObj.getTime()) ? time : timeObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    createTask(room, name, displayDate, displayTime, assignee, imageData);
+    modal.classList.add('hidden');
+  });
+
+  // Click outside modal to close
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+  });
+
+  // Attach centralized footer
+  import('./footer.js').then(mod => {
+    if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
+  });
+
+  renderTasks();
+}
+// footer is attached via js/footer.js
+
+export default renderTasksPage;
