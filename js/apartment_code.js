@@ -42,6 +42,7 @@ function setupEventListeners(page, container, userName, renderBack) {
 	setupBackButton(page, renderBack);
 	setupCreateCodeSection(page, container, userName);
 	setupJoinCodeSection(page, container, userName);
+	setupFooterNavigation(page, container, userName);
 }
 
 function setupBackButton(page, renderBack) {
@@ -110,6 +111,18 @@ function setupJoinCodeSection(page, container, userName) {
 
 		joinMessage.textContent = `Joining apartment with code: ${code}`;
 		renderHomePage(container, userName, code);
+	});
+}
+
+function setupFooterNavigation(page, container, userName) {
+	const footer = document.querySelector('footer');
+	if (!footer) return;
+
+	footer.querySelector('#footer-message').addEventListener('click', async () => {
+		const mod = await import('./group_chat.js');
+		if (mod && typeof mod.renderGroupChatPage === 'function') {
+			mod.renderGroupChatPage(container, userName);
+		}
 	});
 }
 

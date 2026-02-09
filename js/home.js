@@ -86,6 +86,19 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
   }
 
   // Load current user's profile data if available
+  // Wire up footer message button
+  footer.querySelector('#footer-message').addEventListener('click', async () => {
+    const mod = await import('./group_chat.js');
+    if (mod && typeof mod.renderGroupChatPage === 'function') {
+      mod.renderGroupChatPage(container, userName);
+    }
+  });
+
+  // Set username
+  const usernameEl = page.querySelector('#home-username');
+  if (usernameEl) usernameEl.textContent = userName;
+
+  // Load current user's profile picture if available
   const profilesRaw = localStorage.getItem('profiles');
   const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
   const myProfile = profiles[currentUser] || {};
