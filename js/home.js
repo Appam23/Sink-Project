@@ -65,6 +65,15 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
     if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
   });
 
+  // Load current user's profile data if available
+  // Wire up footer message button
+  footer.querySelector('#footer-message').addEventListener('click', async () => {
+    const mod = await import('./group_chat.js');
+    if (mod && typeof mod.renderGroupChatPage === 'function') {
+      mod.renderGroupChatPage(container, userName);
+    }
+  });
+
   // Set username
   const usernameEl = page.querySelector('#home-username');
   if (usernameEl) usernameEl.textContent = userName;
@@ -72,7 +81,24 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
   // Load current user's profile picture if available
   const profilesRaw = localStorage.getItem('profiles');
   const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
-  const myProfile = profiles[userName] || {};
+  const myProfile = profiles[currentUser] || {};
+
+  const formatName = (value) => {
+    const trimmed = (value || '').trim().toLowerCase();
+    if (!trimmed) return '';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  };
+
+  const getDisplayName = (profile, fallback) => {
+    const first = formatName(profile.firstName);
+    const last = formatName(profile.lastName);
+    const full = `${first} ${last}`.trim();
+    return full || fallback;
+  };
+
+  // Set username
+  const usernameEl = page.querySelector('#home-username');
+  if (usernameEl) usernameEl.textContent = getDisplayName(myProfile, currentUser || userName);
   const myPicEl = page.querySelector('#home-profile-pic');
   if (myPicEl) {
     myPicEl.src = myProfile.picture || 'https://via.placeholder.com/64';
@@ -95,9 +121,10 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
         const row = document.createElement('div');
         row.className = 'roommate-row';
         const memberProfile = profiles[m] || {};
+        const memberDisplay = getDisplayName(memberProfile, m);
         row.innerHTML = `
           <img src="${memberProfile.picture || 'https://via.placeholder.com/48'}" class="roommate-pic" />
-          <div class="roommate-name">${m}</div>
+          <div class="roommate-name">${memberDisplay}</div>
         `;
         listEl.appendChild(row);
       });

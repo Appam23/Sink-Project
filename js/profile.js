@@ -79,7 +79,7 @@ export function renderProfilePage(container, userName = 'You') {
 
   const profileForm = profileDiv.querySelector('.profile-form');
   if (profileForm) {
-    profileForm.addEventListener('submit', (event) => {
+    profileForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (profileForm.checkValidity()) {
         // gather profile data and save to localStorage
@@ -98,7 +98,11 @@ export function renderProfilePage(container, userName = 'You') {
         const profiles2 = profilesRaw2 ? JSON.parse(profilesRaw2) : {};
         profiles2[currentUser] = profileData;
         localStorage.setItem('profiles', JSON.stringify(profiles2));
-        alert('Profile saved successfully!');
+        const curApartment = localStorage.getItem('currentApartment') || null;
+        const mod = await import('./home.js');
+        if (mod && typeof mod.renderHomePage === 'function') {
+          mod.renderHomePage(container, currentUser, curApartment);
+        }
       } else {
         profileForm.reportValidity();
       }
@@ -142,8 +146,5 @@ export function renderProfilePage(container, userName = 'You') {
   }
 
  
-  // Attach centralized footer (Home/Calendar/Tasks/Message)
-  import('./footer.js').then(mod => {
-    if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
-  });
+  
 }
