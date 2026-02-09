@@ -62,21 +62,37 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
 
   // Attach centralized footer (Home/Calendar/Tasks/Message)
   import('./footer.js').then(mod => {
-    if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
-  });
+    try {
+      if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
 
-  // Load current user's profile data if available
-  // Wire up footer message button
-  footer.querySelector('#footer-message').addEventListener('click', async () => {
-    const mod = await import('./group_chat.js');
-    if (mod && typeof mod.renderGroupChatPage === 'function') {
-      mod.renderGroupChatPage(container, userName);
+      // After footer is attached, optionally override the Message button to open group chat
+      try {
+        const footer = container.querySelector('.profile-footer');
+        const msgBtn = footer ? footer.querySelector('#footer-message') : null;
+        if (msgBtn) {
+          msgBtn.addEventListener('click', async () => {
+            try {
+              const mod2 = await import('./group_chat.js');
+              if (mod2 && typeof mod2.renderGroupChatPage === 'function') {
+                mod2.renderGroupChatPage(container, userName);
+              } else {
+                // fallback to profile
+                const pmod = await import('./profile.js');
+                if (pmod && typeof pmod.renderProfilePage === 'function') pmod.renderProfilePage(container, userName);
+              }
+            } catch (e) {
+              console.error('Failed to open group chat from footer message button:', e);
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error wiring footer message button in home.js:', e);
+      }
+
+    } catch (err) {
+      console.error('Error attaching footer in home.js:', err);
     }
-  });
-
-  // Set username
-  const usernameEl = page.querySelector('#home-username');
-  if (usernameEl) usernameEl.textContent = userName;
+  }).catch(err => console.error('Failed to load footer module in home.js:', err));
 
   // Load current user's profile picture if available
   const profilesRaw = localStorage.getItem('profiles');
