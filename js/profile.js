@@ -142,17 +142,8 @@ export function renderProfilePage(container, userName = 'You') {
   }
 
  
-  // Footer with icons
-  let footer = container.querySelector('.profile-footer');
-  if (!footer) {
-    footer = document.createElement('footer');
-    footer.className = 'profile-footer';
-    footer.innerHTML = `
-      <button class="footer-btn" title="Home"><span class="footer-icon home-icon"></span></button>
-      <button class="footer-btn" title="Calendar"><span class="footer-icon calendar-icon"></span></button>
-      <button class="footer-btn" title="Task"><span class="footer-icon task-icon"></span></button>
-      <button class="footer-btn" title="Message"><span class="footer-icon message-icon"></span></button>
-    `;
-    container.appendChild(footer);
-  }
+  // Attach centralized footer (Home/Calendar/Tasks/Message)
+  import('./footer.js').then(mod => {
+    if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
+  });
 }
