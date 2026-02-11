@@ -1,3 +1,5 @@
+import { getApartmentItem, setApartmentItem } from './storage.js';
+
 export function renderCalendarPage(container) {
   // Clear container
   container.innerHTML = '';
@@ -13,9 +15,8 @@ export function renderCalendarPage(container) {
 
   container.appendChild(page);
 
-  // Load events from localStorage
-  const eventsRaw = localStorage.getItem('calendarEvents');
-  const events = eventsRaw ? JSON.parse(eventsRaw) : [];
+  // Load events scoped to the current apartment
+  const events = getApartmentItem('calendarEvents', []);
 
   // Render events
   const eventsList = page.querySelector('#events-list');
@@ -147,7 +148,7 @@ function showAddEventModal(container, events) {
       };
       
       events.push(newEvent);
-      localStorage.setItem('calendarEvents', JSON.stringify(events));
+      setApartmentItem('calendarEvents', events);
       
       modal.remove();
       renderCalendarPage(container);
