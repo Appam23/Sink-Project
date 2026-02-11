@@ -1,4 +1,5 @@
 import { renderHomePage } from './home.js';
+import { getApartmentItem, setApartmentItem } from './storage.js';
 
 export function renderGroupChatPage(container, userName = 'You') {
   // Clear container
@@ -63,7 +64,7 @@ export function renderGroupChatPage(container, userName = 'You') {
   const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
   const userProfile = profiles[userName] || {};
 
-  const messages = JSON.parse(localStorage.getItem('groupChatMessages') || '[]');
+  const messages = getApartmentItem('groupChatMessages', []);
 
   function renderMessages() {
     chatBox.innerHTML = '';
@@ -92,7 +93,7 @@ export function renderGroupChatPage(container, userName = 'You') {
 
     if (text || file) {
       messages.push({ sender: userName, text, file: fileUrl });
-      localStorage.setItem('groupChatMessages', JSON.stringify(messages));
+      setApartmentItem('groupChatMessages', messages);
       renderMessages();
       messageInput.value = '';
       fileInput.value = '';
