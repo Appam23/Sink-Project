@@ -453,8 +453,19 @@ body {
     h2 {
         font-size: 1.3em;
     }
+    /* Make form controls and buttons readable and touch-friendly on small screens */
     input, button, .main-btn {
-        font-size: 1px;
+        font-size: 16px;
+        padding: 12px 14px;
+        line-height: 1.2;
+    }
+
+    /* Ensure main buttons span the available width on small devices */
+    .main-btn, #show-login, #show-signup, #back-btn, #sub-login, #sub-signup {
+        width: 90%;
+        max-width: none;
+        margin-left: auto;
+        margin-right: auto;
     }
 }
 h2 {
