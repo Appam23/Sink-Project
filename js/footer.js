@@ -15,50 +15,29 @@ export function attachFooter(container) {
 
   const homeBtn = footer.querySelector('#footer-home');
   if (homeBtn) {
-    homeBtn.addEventListener('click', async () => {
-      const mod = await import('./home.js');
-      const cur = localStorage.getItem('currentUser');
-      const apt = localStorage.getItem('currentApartment');
-      if (mod && typeof mod.renderHomePage === 'function') {
-        mod.renderHomePage(container, cur, apt);
-      }
+    homeBtn.addEventListener('click', () => {
+      window.location.href = 'home.html';
     });
   }
 
   const calendarBtn = footer.querySelector('#footer-calendar');
   if (calendarBtn) {
-    calendarBtn.addEventListener('click', async () => {
-      const mod = await import('./calendar.js');
-      if (mod && typeof mod.renderCalendarPage === 'function') {
-        mod.renderCalendarPage(container);
-      }
+    calendarBtn.addEventListener('click', () => {
+      window.location.href = 'calendar.html';
     });
   }
 
   const taskBtn = footer.querySelector('#footer-task');
   if (taskBtn) {
-    taskBtn.addEventListener('click', async () => {
-      const mod = await import('./tasks.js');
-      if (mod && typeof mod.renderTasksPage === 'function') {
-        mod.renderTasksPage(container);
-      }
+    taskBtn.addEventListener('click', () => {
+      window.location.href = 'tasks.html';
     });
   }
 
   const msgBtn = footer.querySelector('#footer-message');
   if (msgBtn) {
-    msgBtn.addEventListener('click', async () => {
-      try {
-        const mod = await import('./group_chat.js');
-        const cur = localStorage.getItem('currentUser');
-        if (mod && typeof mod.renderGroupChatPage === 'function') {
-          mod.renderGroupChatPage(container, cur);
-        } else {
-          console.error('group_chat module missing renderGroupChatPage');
-        }
-      } catch (err) {
-        console.error('Failed to open group chat from footer:', err);
-      }
+    msgBtn.addEventListener('click', () => {
+      window.location.href = 'group_chat.html';
     });
   }
 }

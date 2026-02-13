@@ -1,5 +1,3 @@
-import { renderHomePage } from './home.js';
-
 export function renderApartmentCodePage(container, userName = 'You', renderBack) {
 	clearContainer(container);
 	const page = createPageStructure();
@@ -50,11 +48,7 @@ function setupBackButton(page, renderBack) {
 	if (!backBtn) return;
 
 	backBtn.addEventListener('click', () => {
-		if (typeof renderBack === 'function') {
-			renderBack();
-		} else {
-			window.location.reload();
-		}
+		window.history.back();
 	});
 }
 
@@ -75,7 +69,7 @@ function setupCreateCodeSection(page, container, userName) {
 		continueBtn.addEventListener('click', () => {
 			const code = extractCodeFromMessage(createdCode.textContent);
 			if (code) {
-				renderHomePage(container, userName, code);
+				window.location.href = 'home.html';
 			}
 		});
 	}
@@ -110,20 +104,12 @@ function setupJoinCodeSection(page, container, userName) {
 		localStorage.setItem('currentUser', userName);
 
 		joinMessage.textContent = `Joining apartment with code: ${code}`;
-		renderHomePage(container, userName, code);
+		window.location.href = 'home.html';
 	});
 }
 
 function setupFooterNavigation(page, container, userName) {
-	const footer = document.querySelector('footer');
-	if (!footer) return;
-
-	footer.querySelector('#footer-message').addEventListener('click', async () => {
-		const mod = await import('./group_chat.js');
-		if (mod && typeof mod.renderGroupChatPage === 'function') {
-			mod.renderGroupChatPage(container, userName);
-		}
-	});
+	// No footer navigation on apartment code page - this is a temporary page
 }
 
 function generateApartmentCode() {
@@ -150,3 +136,11 @@ function extractCodeFromMessage(message) {
 	const match = message.match(/([A-Z0-9]{6})/);
 	return match ? match[1] : localStorage.getItem('currentApartment');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+	const container = document.getElementById('app-container');
+	if (container) {
+		const userName = localStorage.getItem('currentUser') || 'You';
+		renderApartmentCodePage(container, userName);
+	}
+});

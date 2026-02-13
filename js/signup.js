@@ -1,6 +1,4 @@
-import { renderApartmentCodePage } from './apartment_code.js';
-
-export function renderSignupForm(container, renderWelcomePageWithEvents) {
+export function renderSignupForm(container, renderWelcomePageWithEvents, renderLoginForm) {
   while (container.firstChild) {
     container.removeChild(container.firstChild);
   }
@@ -19,7 +17,8 @@ export function renderSignupForm(container, renderWelcomePageWithEvents) {
     e.preventDefault();
     const email = document.getElementById('signup-email').value.trim();
     if (email) {
-      renderApartmentCodePage(container, email, () => renderSignupForm(container, renderWelcomePageWithEvents));
+      localStorage.setItem('currentUser', email);
+      window.location.href = 'apartment_code.html';
     } else {
       document.getElementById('signup-message').innerText = 'Please enter your email.';
     }

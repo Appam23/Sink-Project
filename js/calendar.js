@@ -1,6 +1,6 @@
 import { getApartmentItem, setApartmentItem } from './storage.js';
 
-export function renderCalendarPage(container) {
+function renderCalendarPage(container) {
   // Clear container
   container.innerHTML = '';
 
@@ -54,6 +54,13 @@ export function renderCalendarPage(container) {
     if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
   });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.getElementById('app-container');
+  if (container) {
+    renderCalendarPage(container);
+  }
+});
 
 function showAddEventModal(container, events) {
   const modal = document.createElement('div');
@@ -162,7 +169,3 @@ function showAddEventModal(container, events) {
     }
   });
 }
-
-// footer wiring is centralized in js/footer.js
-
-export default renderCalendarPage;

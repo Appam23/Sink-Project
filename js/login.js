@@ -1,4 +1,3 @@
-import { renderHomePage } from './home.js';
 export function renderLoginForm(container, renderWelcomePageWithEvents, renderSignupForm) {
   while (container.firstChild) {
     container.removeChild(container.firstChild);
@@ -22,7 +21,24 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
       const email = document.getElementById('login-email').value.trim();
       if (email) {
         localStorage.setItem('currentUser', email);
-        renderHomePage(container, email);
+        // Check if user has an apartment already
+        const apartments = JSON.parse(localStorage.getItem('apartments') || '{}');
+        let hasApartment = false;
+        let apartmentCode = null;
+        for (const code of Object.keys(apartments)) {
+          if (apartments[code].includes(email)) {
+            hasApartment = true;
+            apartmentCode = code;
+            localStorage.setItem('currentApartment', code);
+            break;
+          }
+        }
+        // Navigate to home or apartment setup
+        if (hasApartment) {
+          window.location.href = 'home.html';
+        } else {
+          window.location.href = 'apartment_code.html';
+        }
       } else {
         document.getElementById('login-message').innerText = 'Please enter your email.';
       }

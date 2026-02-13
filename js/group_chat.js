@@ -1,7 +1,6 @@
-import { renderHomePage } from './home.js';
 import { getApartmentItem, setApartmentItem } from './storage.js';
 
-export function renderGroupChatPage(container, userName = 'You') {
+function renderGroupChatPage(container, userName = 'You') {
   // Clear container
   container.innerHTML = '';
 
@@ -24,34 +23,9 @@ export function renderGroupChatPage(container, userName = 'You') {
   container.appendChild(page);
 
   // Footer navigation
-  let footer = container.querySelector('.profile-footer');
-  if (!footer) {
-    footer = document.createElement('footer');
-    footer.className = 'profile-footer';
-    footer.innerHTML = `
-      <button class="footer-btn" id="footer-home" title="Home"><span class="footer-icon home-icon"></span></button>
-      <button class="footer-btn" id="footer-calendar" title="Calendar"><span class="footer-icon calendar-icon"></span></button>
-      <button class="footer-btn" id="footer-task" title="Task"><span class="footer-icon task-icon"></span></button>
-      <button class="footer-btn" id="footer-chat" title="Group Chat"><span class="footer-icon message-icon"></span></button>
-    `;
-    container.appendChild(footer);
-  }
-
-  // Event listeners for footer navigation
-  footer.querySelector('#footer-home').addEventListener('click', () => renderHomePage(container, userName));
-  footer.querySelector('#footer-calendar').addEventListener('click', async () => {
-    const mod = await import('./calendar.js');
-    if (mod && typeof mod.renderCalendarPage === 'function') {
-      mod.renderCalendarPage(container);
-    }
+  import('./footer.js').then(mod => {
+    if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
   });
-  footer.querySelector('#footer-task').addEventListener('click', async () => {
-    const mod = await import('./tasks.js');
-    if (mod && typeof mod.renderTasksPage === 'function') {
-      mod.renderTasksPage(container);
-    }
-  });
-  footer.querySelector('#footer-chat').addEventListener('click', () => renderGroupChatPage(container, userName));
 
   // Chat functionality
   const chatBox = page.querySelector('#chat-box');
@@ -102,3 +76,10 @@ export function renderGroupChatPage(container, userName = 'You') {
 
   attachFileBtn.addEventListener('click', () => fileInput.click());
 }
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.getElementById('app-container');
+  if (container) {
+    const userName = localStorage.getItem('currentUser') || 'You';
+    renderGroupChatPage(container, userName);
+  }
+});
