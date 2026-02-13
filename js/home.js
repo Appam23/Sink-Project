@@ -1,6 +1,6 @@
 import { renderProfilePage } from './profile.js';
 
-export function renderHomePage(container, userName = 'You', apartmentCode = null) {
+function renderHomePage(container, userName = 'You', apartmentCode = null) {
   // Clear container
   container.innerHTML = '';
 
@@ -64,31 +64,6 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
   import('./footer.js').then(mod => {
     try {
       if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
-
-      // After footer is attached, optionally override the Message button to open group chat
-      try {
-        const footer = container.querySelector('.profile-footer');
-        const msgBtn = footer ? footer.querySelector('#footer-message') : null;
-        if (msgBtn) {
-          msgBtn.addEventListener('click', async () => {
-            try {
-              const mod2 = await import('./group_chat.js');
-              if (mod2 && typeof mod2.renderGroupChatPage === 'function') {
-                mod2.renderGroupChatPage(container, userName);
-              } else {
-                // fallback to profile
-                const pmod = await import('./profile.js');
-                if (pmod && typeof pmod.renderProfilePage === 'function') pmod.renderProfilePage(container, userName);
-              }
-            } catch (e) {
-              console.error('Failed to open group chat from footer message button:', e);
-            }
-          });
-        }
-      } catch (e) {
-        console.error('Error wiring footer message button in home.js:', e);
-      }
-
     } catch (err) {
       console.error('Error attaching footer in home.js:', err);
     }
@@ -151,7 +126,7 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
   const editBtn = page.querySelector('#edit-profile-btn');
   if (editBtn) {
     editBtn.addEventListener('click', () => {
-      renderProfilePage(container, userName);
+      window.location.href = 'profile.html';
     });
   }
 
@@ -166,4 +141,11 @@ export function renderHomePage(container, userName = 'You', apartmentCode = null
   }
 }
 
-export default renderHomePage;
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.getElementById('app-container');
+  if (container) {
+    const userName = localStorage.getItem('currentUser') || 'You';
+    const apartmentCode = localStorage.getItem('currentApartment') || null;
+    renderHomePage(container, userName, apartmentCode);
+  }
+});

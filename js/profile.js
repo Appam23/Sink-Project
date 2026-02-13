@@ -67,13 +67,8 @@ export function renderProfilePage(container, userName = 'You') {
 
   const backToApartmentBtn = profileDiv.querySelector('#back-to-apartment-btn');
   if (backToApartmentBtn) {
-    backToApartmentBtn.addEventListener('click', async () => {
-      const cur = localStorage.getItem('currentUser') || userName;
-      const curApartment = localStorage.getItem('currentApartment') || null;
-      const mod = await import('./home.js');
-      if (mod && typeof mod.renderHomePage === 'function') {
-        mod.renderHomePage(container, cur, curApartment);
-      }
+    backToApartmentBtn.addEventListener('click', () => {
+      window.location.href = 'home.html';
     });
   }
 
@@ -98,11 +93,7 @@ export function renderProfilePage(container, userName = 'You') {
         const profiles2 = profilesRaw2 ? JSON.parse(profilesRaw2) : {};
         profiles2[currentUser] = profileData;
         localStorage.setItem('profiles', JSON.stringify(profiles2));
-        const curApartment = localStorage.getItem('currentApartment') || null;
-        const mod = await import('./home.js');
-        if (mod && typeof mod.renderHomePage === 'function') {
-          mod.renderHomePage(container, currentUser, curApartment);
-        }
+        window.location.href = 'home.html';
       } else {
         profileForm.reportValidity();
       }
@@ -113,13 +104,7 @@ export function renderProfilePage(container, userName = 'You') {
   const quitBtn = profileDiv.querySelector('.quit-btn');
   if (quitBtn) {
     quitBtn.addEventListener('click', function () {
-      if (window.renderWelcomePage) {
-        window.renderWelcomePage(container, () => {});
-      } else if (typeof renderWelcomePage === 'function') {
-        renderWelcomePage(container, () => {});
-      } else {
-        window.location.reload();
-      }
+      window.location.href = 'index.html';
     });
   }
 
@@ -144,7 +129,12 @@ export function renderProfilePage(container, userName = 'You') {
       });
     }
   }
-
- 
-  
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.getElementById('app-container');
+  if (container) {
+    const userName = localStorage.getItem('currentUser') || 'You';
+    renderProfilePage(container, userName);
+  }
+});

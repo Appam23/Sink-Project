@@ -1,6 +1,6 @@
 // tasks.js
 
-export function renderTasksPage(container) {
+function renderTasksPage(container) {
   container.innerHTML = '';
 
   const currentUser = localStorage.getItem('currentUser') || 'You';
@@ -315,6 +315,10 @@ export function renderTasksPage(container) {
 
   renderTasks();
 }
-// footer is attached via js/footer.js
 
-export default renderTasksPage;
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.getElementById('app-container');
+  if (container) {
+    renderTasksPage(container);
+  }
+});
