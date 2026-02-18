@@ -1059,3 +1059,7 @@ button:hover, .main-btn:hover {
 .chat-input-form button:hover {
     background: #35c4b8;
 }
+hr{
+    background-color: transparent;
+    border-color: transparent;
+}

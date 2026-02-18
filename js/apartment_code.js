@@ -56,13 +56,19 @@ function setupCreateCodeSection(page, container, userName) {
 	const createBtn = page.querySelector('#create-apartment-code');
 	const continueBtn = page.querySelector('#continue-after-create');
 	const createdCode = page.querySelector('#created-code');
+	// Hide Continue button initially
+	if (continueBtn) {
+		continueBtn.style.display = 'none';
+	}
 
-	if (createBtn && createdCode) {
-		createBtn.addEventListener('click', () => {
-			const code = generateApartmentCode();
-			createdCode.textContent = `Your apartment code: ${code}`;
-			saveNewApartment(code, userName);
-		});
+	  if (createBtn && createdCode && continueBtn) {
+		   createBtn.addEventListener('click', () => {
+			   const code = generateApartmentCode();
+			   createdCode.textContent = `Your apartment code: ${code}`;
+			   saveNewApartment(code, userName);
+			   createBtn.style.display = 'none';
+			   continueBtn.style.display = '';
+		   });
 	}
 
 	if (continueBtn) {

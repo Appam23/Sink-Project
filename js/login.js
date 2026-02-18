@@ -7,7 +7,10 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
   form.innerHTML = `
     <button type="button" id="back-btn">&#8592; Back</button>
     <h2 id="form-title">Login</h2>
+    <label for="login-email">Email:</label>
     <input type="text" id="login-email" placeholder="Email" required />
+    <hr/>
+    <label for="login-password">Password:</label>
     <input type="password" id="login-password" placeholder="Password" required />
     <button type="submit" id="sub-login" class="main-btn">Login</button>
     <div class="message" id="login-message"></div>
