@@ -124,11 +124,15 @@ function generateApartmentCode() {
 
 function saveNewApartment(code, userName) {
 	const apartments = getApartments();
+	const apartmentOwnersRaw = localStorage.getItem('apartmentOwners');
+	const apartmentOwners = apartmentOwnersRaw ? JSON.parse(apartmentOwnersRaw) : {};
 	apartments[code] = apartments[code] || [];
 	if (!apartments[code].includes(userName)) {
 		apartments[code].push(userName);
 	}
+	apartmentOwners[code] = userName;
 	localStorage.setItem('apartments', JSON.stringify(apartments));
+	localStorage.setItem('apartmentOwners', JSON.stringify(apartmentOwners));
 	localStorage.setItem('currentApartment', code);
 	localStorage.setItem('currentUser', userName);
 }

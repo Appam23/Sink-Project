@@ -396,8 +396,67 @@ body {
 .logout-bottom-right {
     position: absolute;
     right: 24px;
-    bottom: 92px;
+    bottom: 28px;
     z-index: 30;
+}
+
+.settings-floating-btn {
+    position: absolute;
+    left: 24px;
+    bottom: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: none;
+    background: #47d9ca;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 40;
+}
+
+.settings-floating-btn:hover {
+    background: #35c4b8;
+}
+
+.settings-gear-icon {
+    width: 26px;
+    height: 26px;
+    fill: #fff;
+}
+
+.settings-popup {
+    position: absolute;
+    left: 24px;
+    bottom: 80px;
+    min-width: 155px;
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 120;
+}
+
+.settings-action-btn {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #47d9ca;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+}
+
+.settings-action-btn:hover {
+    background: #35c4b8;
 }
 
 .main-btn.small {
