@@ -18,13 +18,13 @@ export function renderProfilePage(container, userName = 'You') {
         </label>
       </div>
       <div class="profile-fields">
-        <input type="text" id="first-name" class="profile-input" placeholder="First Name" required />
-        <input type="text" id="last-name" class="profile-input" placeholder="Last Name" required />
-        <input type="text" id="age" class="profile-input" placeholder="Age" required />
-        <input type="text" id="Apartment-No" class="profile-input" placeholder="Apt. No." required />
-        <input type="text" id="Room-Number" class="profile-input" placeholder="Room No." required />
-        <input type="text" id="Phone-Number" class="profile-input" placeholder="Phone Number" required />
-        <textarea id="Bio" class="profile-input bio-input" placeholder="Something about yourself..." required></textarea>
+        <input type="text" id="first-name" class="profile-input" placeholder="First Name" />
+        <input type="text" id="last-name" class="profile-input" placeholder="Last Name" />
+        <input type="text" id="age" class="profile-input" placeholder="Age" />
+        <input type="text" id="Apartment-No" class="profile-input" placeholder="Apt. No." />
+        <input type="text" id="Room-Number" class="profile-input" placeholder="Room No." />
+        <input type="text" id="Phone-Number" class="profile-input" placeholder="Phone Number" />
+        <textarea id="Bio" class="profile-input bio-input" placeholder="Something about yourself..."></textarea>
         <button type="button" id="back-to-apartment-btn" class="main-btn">Back</button>
         <button type="submit" id="save-profile-btn" class="main-btn">Save Profile</button>
         <button type="button" id="quit-profile-btn" class="quit-btn">Quit</button>
@@ -76,27 +76,22 @@ export function renderProfilePage(container, userName = 'You') {
   if (profileForm) {
     profileForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (profileForm.checkValidity()) {
-        // gather profile data and save to localStorage
-        const profileData = {
-          firstName: document.getElementById('first-name').value.trim(),
-          lastName: document.getElementById('last-name').value.trim(),
-          age: document.getElementById('age').value.trim(),
-          apartmentNo: document.getElementById('Apartment-No').value.trim(),
-          roomNumber: document.getElementById('Room-Number').value.trim(),
-          phone: document.getElementById('Phone-Number').value.trim(),
-          bio: document.getElementById('Bio').value.trim(),
-          picture: picPreview ? picPreview.src : ''
-        };
-        const currentUser = localStorage.getItem('currentUser') || userName;
-        const profilesRaw2 = localStorage.getItem('profiles');
-        const profiles2 = profilesRaw2 ? JSON.parse(profilesRaw2) : {};
-        profiles2[currentUser] = profileData;
-        localStorage.setItem('profiles', JSON.stringify(profiles2));
-        window.location.href = 'home.html';
-      } else {
-        profileForm.reportValidity();
-      }
+      const profileData = {
+        firstName: document.getElementById('first-name').value.trim(),
+        lastName: document.getElementById('last-name').value.trim(),
+        age: document.getElementById('age').value.trim(),
+        apartmentNo: document.getElementById('Apartment-No').value.trim(),
+        roomNumber: document.getElementById('Room-Number').value.trim(),
+        phone: document.getElementById('Phone-Number').value.trim(),
+        bio: document.getElementById('Bio').value.trim(),
+        picture: picPreview ? picPreview.src : ''
+      };
+      const currentUser = localStorage.getItem('currentUser') || userName;
+      const profilesRaw2 = localStorage.getItem('profiles');
+      const profiles2 = profilesRaw2 ? JSON.parse(profilesRaw2) : {};
+      profiles2[currentUser] = profileData;
+      localStorage.setItem('profiles', JSON.stringify(profiles2));
+      window.location.href = 'home.html';
     });
   }
 
