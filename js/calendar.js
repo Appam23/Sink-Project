@@ -1,4 +1,22 @@
 import { getApartmentItem, setApartmentItem } from './storage.js';
+import { requireApartmentMembership, getApartments, getUserApartmentCode } from './auth.js';
+import { addNotificationForUser } from './notifications.js';
+
+function notifyRoommatesAboutNewEvent(eventName, actorUser) {
+  const apartments = getApartments();
+  const apartmentCode = getUserApartmentCode(actorUser, apartments);
+  if (!apartmentCode || !Array.isArray(apartments[apartmentCode])) return;
+
+  const message = `${actorUser} added a new event: ${eventName}`;
+  apartments[apartmentCode].forEach((member) => {
+    if (member === actorUser) return;
+    addNotificationForUser(member, apartmentCode, {
+      type: 'event',
+      message,
+      link: 'calendar.html',
+    });
+  });
+}
 
 function renderCalendarPage(container) {
   // Clear container
@@ -58,6 +76,8 @@ function renderCalendarPage(container) {
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
+    const access = requireApartmentMembership();
+    if (!access || !access.apartmentCode) return;
     renderCalendarPage(container);
   }
 });
@@ -156,6 +176,8 @@ function showAddEventModal(container, events) {
       
       events.push(newEvent);
       setApartmentItem('calendarEvents', events);
+      const currentUser = localStorage.getItem('currentUser') || 'You';
+      notifyRoommatesAboutNewEvent(newEvent.name, currentUser);
       
       modal.remove();
       renderCalendarPage(container);

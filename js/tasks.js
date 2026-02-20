@@ -1,4 +1,6 @@
 // tasks.js
+import { requireApartmentMembership } from './auth.js';
+import { addNotificationForUser } from './notifications.js';
 
 function renderTasksPage(container) {
   container.innerHTML = '';
@@ -158,6 +160,30 @@ function renderTasksPage(container) {
     tasks.push({ id, room, title, date, time, assignee, image: image || null });
     saveTasks(tasks);
     renderTasks();
+    return id;
+  }
+
+  function notifyTaskAssigned(taskTitle, assignee, taskId) {
+    if (!apartmentCode || !taskTitle || !taskId) return;
+
+    if (assignee === 'Everyone') {
+      uniqueMembers.forEach((member) => {
+        if (member === currentUser) return;
+        addNotificationForUser(member, apartmentCode, {
+          type: 'task',
+          message: `${currentUser} assigned a task to everyone: ${taskTitle}`,
+          link: `tasks.html?taskId=${taskId}`,
+        });
+      });
+      return;
+    }
+
+    if (!assignee || assignee === currentUser) return;
+    addNotificationForUser(assignee, apartmentCode, {
+      type: 'task',
+      message: `${currentUser} assigned you a task: ${taskTitle}`,
+      link: `tasks.html?taskId=${taskId}`,
+    });
   }
 
   function toggleComplete(id) {
@@ -202,6 +228,7 @@ function renderTasksPage(container) {
     tasks.forEach(task => {
       const row = document.createElement('div');
       row.className = 'event-row task-row';
+      row.setAttribute('data-task-id', String(task.id));
       const thumbHtml = task.image ? `<img class="task-thumb" src="${task.image}" alt="thumb"/>` : '';
       const viewBtnHtml = task.image ? `<button class="view-btn">View</button>` : '';
       row.innerHTML = `
@@ -237,6 +264,17 @@ function renderTasksPage(container) {
         list.appendChild(msg);
       }
     });
+
+    const params = new URLSearchParams(window.location.search);
+    const targetTaskId = params.get('taskId');
+    if (targetTaskId) {
+      const targetTask = page.querySelector(`.task-row[data-task-id="${targetTaskId}"]`);
+      if (targetTask) {
+        targetTask.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetTask.classList.add('task-target');
+        setTimeout(() => targetTask.classList.remove('task-target'), 1800);
+      }
+    }
   }
 
   // Add button (single floating) — open modal when clicked
@@ -299,7 +337,8 @@ function renderTasksPage(container) {
     const timeObj = new Date(`2000-01-01T${time}`);
     const displayTime = isNaN(timeObj.getTime()) ? time : timeObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    createTask(room, name, displayDate, displayTime, assignee, imageData);
+    const createdTaskId = createTask(room, name, displayDate, displayTime, assignee, imageData);
+    notifyTaskAssigned(name, assignee, createdTaskId);
     modal.classList.add('hidden');
   });
 
@@ -319,6 +358,8 @@ function renderTasksPage(container) {
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
+    const access = requireApartmentMembership();
+    if (!access || !access.apartmentCode) return;
     renderTasksPage(container);
   }
 });

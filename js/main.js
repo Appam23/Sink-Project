@@ -28,5 +28,9 @@ document.addEventListener('DOMContentLoaded', function() {
     renderWelcomePage(container, attachWelcomeEvents);
   }
 
-  renderWelcomePageWithEvents();
+  if (window.location.hash === '#login') {
+    renderLoginFormWithNav();
+  } else {
+    renderWelcomePageWithEvents();
+  }
 });

@@ -345,11 +345,116 @@ body {
     width: 50%;
 }
 
+.home-user-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
 .home-username {
     font-size: 1.6em;
     font-weight: 600;
     align-self: flex-start;
     margin-top: 8px;
+}
+
+.notifications-btn {
+    border: none;
+    background: #47d9ca;
+    color: #fff;
+    border-radius: 999px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.notifications-btn:hover {
+    background: #35c4b8;
+}
+
+.notifications-bell {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.notifications-count {
+    background: #ff6b6b;
+    color: #fff;
+    border-radius: 999px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.notifications-popup {
+    position: absolute;
+    right: 16px;
+    top: 98px;
+    width: min(360px, calc(100% - 32px));
+    max-height: 280px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 10px;
+    z-index: 120;
+}
+
+.notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.notifications-popup-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.clear-notifications-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: #47d9ca;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.clear-notifications-btn:hover {
+    background: #35c4b8;
+}
+
+.notification-item {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #f7f7f7;
+    color: #222;
+    text-align: left;
+    cursor: pointer;
+}
+
+.notification-item:hover {
+    background: #efefef;
+}
+
+.notification-empty {
+    color: #888;
+    padding: 8px;
+    text-align: center;
 }
 
 .home-body {
@@ -391,6 +496,69 @@ body {
 
 .roommate-name {
     font-weight: 500;
+}
+
+.roommate-row {
+    cursor: pointer;
+}
+
+.roommate-profile-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1500;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.roommate-profile-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+.roommate-profile-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.roommate-profile-image {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.roommate-profile-name {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #222;
+}
+
+.roommate-profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.roommate-profile-line {
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #222;
+    font-size: 0.95em;
 }
 
 .logout-bottom-right {
@@ -876,6 +1044,11 @@ button:hover, .main-btn:hover {
 .event-location {
     font-size: 0.85em;
     color: #666;
+}
+
+.task-target {
+    border-color: #47d9ca;
+    box-shadow: 0 0 0 2px rgba(71, 217, 202, 0.22);
 }
 
 .event-time {

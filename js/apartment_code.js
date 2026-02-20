@@ -1,3 +1,7 @@
+import { requireApartmentMembership, getUserApartmentCode } from './auth.js';
+
+const MAX_ROOMMATES = 12;
+
 export function renderApartmentCodePage(container, userName = 'You', renderBack) {
 	clearContainer(container);
 	const page = createPageStructure();
@@ -37,17 +41,23 @@ function createPageStructure() {
 }
 
 function setupEventListeners(page, container, userName, renderBack) {
-	setupBackButton(page, renderBack);
+	setupBackButton(page, userName);
 	setupCreateCodeSection(page, container, userName);
 	setupJoinCodeSection(page, container, userName);
 	setupFooterNavigation(page, container, userName);
 }
 
-function setupBackButton(page, renderBack) {
+function setupBackButton(page, userName) {
 	const backBtn = page.querySelector('#back-btn');
 	if (!backBtn) return;
 
 	backBtn.addEventListener('click', () => {
+		const apartments = getApartments();
+		const apartmentCode = getUserApartmentCode(userName, apartments);
+		if (!apartmentCode) {
+			window.location.href = 'index.html';
+			return;
+		}
 		window.history.back();
 	});
 }
@@ -102,7 +112,13 @@ function setupJoinCodeSection(page, container, userName) {
 			return;
 		}
 
-		if (!apartments[code].includes(userName)) {
+		const isAlreadyMember = apartments[code].includes(userName);
+		if (!isAlreadyMember && apartments[code].length >= MAX_ROOMMATES) {
+			joinMessage.textContent = 'Sorry! This apartment is full!';
+			return;
+		}
+
+		if (!isAlreadyMember) {
 			apartments[code].push(userName);
 		}
 		localStorage.setItem('apartments', JSON.stringify(apartments));
@@ -150,7 +166,10 @@ function extractCodeFromMessage(message) {
 document.addEventListener('DOMContentLoaded', function() {
 	const container = document.getElementById('app-container');
 	if (container) {
-		const userName = localStorage.getItem('currentUser') || 'You';
+		const access = requireApartmentMembership({ redirectIfHasApartment: 'home.html' });
+		if (!access) return;
+		if (access.apartmentCode) return;
+		const userName = access.currentUser;
 		renderApartmentCodePage(container, userName);
 	}
 });

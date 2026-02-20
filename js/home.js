@@ -1,4 +1,6 @@
 import { renderProfilePage } from './profile.js';
+import { requireApartmentMembership } from './auth.js';
+import { clearUserNotifications, getUserNotifications, markAllNotificationsRead } from './notifications.js';
 
 function parseJsonStorage(key, fallback) {
   const raw = localStorage.getItem(key);
@@ -158,6 +160,8 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   // Exclude the current user from the roommates list
   const currentUser = localStorage.getItem('currentUser') || userName;
   const apartmentOwner = getApartmentOwner(code, apartments, owners);
+  const apartmentMemberCount = Array.isArray(members) ? members.length : 0;
+  const canLeaveApartment = apartmentMemberCount > 1;
   const canDeleteApartment = !!code && apartmentOwner === currentUser;
 
   if (code && apartmentOwner && !owners[code]) {
@@ -181,8 +185,21 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
         <button id="edit-profile-btn" class="main-btn small">Edit Profile</button>
       </div>
       <div class="home-right">
-        <div id="home-username" class="home-username"></div>
+        <div class="home-user-meta">
+          <div id="home-username" class="home-username"></div>
+          <button id="notifications-btn" class="notifications-btn" aria-label="Open notifications">
+            <span class="notifications-bell">🔔</span>
+            <span id="notifications-count" class="notifications-count hidden">0</span>
+          </button>
+        </div>
       </div>
+    </div>
+
+    <div id="notifications-popup" class="notifications-popup hidden" role="dialog" aria-label="Notifications">
+      <div class="notifications-popup-header">
+        <button id="clear-notifications-btn" type="button" class="clear-notifications-btn">Clear All</button>
+      </div>
+      <div id="notifications-list" class="notifications-list"></div>
     </div>
 
     <div class="home-body">
@@ -202,7 +219,7 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
     </button>
 
     <div id="settings-popup" class="settings-popup hidden" role="dialog" aria-label="Apartment settings">
-      <button id="leave-apartment-btn" class="settings-action-btn">Leave Apartment</button>
+      <button id="leave-apartment-btn" class="settings-action-btn ${canLeaveApartment ? '' : 'hidden'}">Leave Apartment</button>
       <button id="delete-apartment-btn" class="settings-action-btn quit-btn ${canDeleteApartment ? '' : 'hidden'}">Delete Apartment</button>
       <button id="delete-account-btn" class="settings-action-btn quit-btn">Delete Account</button>
     </div>
@@ -237,6 +254,42 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
     return full || fallback;
   };
 
+  const getProfileValue = (value) => {
+    const normalized = (value || '').toString().trim();
+    return normalized || 'Not provided';
+  };
+
+  const showRoommateProfilePopup = (memberDisplay, memberProfile = {}) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'roommate-profile-overlay';
+    overlay.innerHTML = `
+      <div class="roommate-profile-card" role="dialog" aria-label="Roommate profile">
+        <div class="roommate-profile-header">
+          <img src="${memberProfile.picture || 'https://via.placeholder.com/96'}" class="roommate-profile-image" alt="${memberDisplay} profile" />
+          <div class="roommate-profile-name">${memberDisplay}</div>
+        </div>
+        <div class="roommate-profile-info">
+          <div class="roommate-profile-line"><strong>Bio:</strong> ${getProfileValue(memberProfile.bio)}</div>
+          <div class="roommate-profile-line"><strong>Room No.:</strong> ${getProfileValue(memberProfile.roomNumber)}</div>
+          <div class="roommate-profile-line"><strong>Phone:</strong> ${getProfileValue(memberProfile.phone)}</div>
+        </div>
+      </div>
+    `;
+
+    const card = overlay.querySelector('.roommate-profile-card');
+    if (card) {
+      card.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+    }
+
+    overlay.addEventListener('click', () => {
+      overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+  };
+
   // Set username
   const usernameEl = page.querySelector('#home-username');
   if (usernameEl) usernameEl.textContent = getDisplayName(myProfile, currentUser || userName);
@@ -267,6 +320,9 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
           <img src="${memberProfile.picture || 'https://via.placeholder.com/48'}" class="roommate-pic" />
           <div class="roommate-name">${memberDisplay}</div>
         `;
+        row.addEventListener('click', () => {
+          showRoommateProfilePopup(memberDisplay, memberProfile);
+        });
         listEl.appendChild(row);
       });
     }
@@ -295,11 +351,51 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   const leaveApartmentBtn = page.querySelector('#leave-apartment-btn');
   const deleteApartmentBtn = page.querySelector('#delete-apartment-btn');
   const deleteAccountBtn = page.querySelector('#delete-account-btn');
+  const notificationsBtn = page.querySelector('#notifications-btn');
+  const notificationsPopup = page.querySelector('#notifications-popup');
+  const notificationsList = page.querySelector('#notifications-list');
+  const notificationsCount = page.querySelector('#notifications-count');
+  const clearNotificationsBtn = page.querySelector('#clear-notifications-btn');
+
+  let notifications = getUserNotifications(currentUser, code);
+
+  function renderNotifications() {
+    if (!notificationsList || !notificationsCount) return;
+
+    const unreadCount = notifications.filter((notification) => !notification.read).length;
+    if (unreadCount > 0) {
+      notificationsCount.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+      notificationsCount.classList.remove('hidden');
+    } else {
+      notificationsCount.classList.add('hidden');
+    }
+
+    if (notifications.length === 0) {
+      notificationsList.innerHTML = '<div class="notification-empty">No notifications yet.</div>';
+      return;
+    }
+
+    notificationsList.innerHTML = '';
+    notifications.forEach((notification) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'notification-item';
+      item.textContent = notification.message || 'New notification';
+      item.addEventListener('click', () => {
+        const target = notification.link || 'home.html';
+        window.location.href = target;
+      });
+      notificationsList.appendChild(item);
+    });
+  }
+
+  renderNotifications();
 
   if (settingsBtn && settingsPopup) {
     settingsBtn.addEventListener('click', (event) => {
       event.stopPropagation();
       settingsPopup.classList.toggle('hidden');
+      if (notificationsPopup) notificationsPopup.classList.add('hidden');
     });
 
     settingsPopup.addEventListener('click', (event) => {
@@ -308,6 +404,29 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
 
     document.addEventListener('click', () => {
       settingsPopup.classList.add('hidden');
+      if (notificationsPopup) notificationsPopup.classList.add('hidden');
+    });
+  }
+
+  if (notificationsBtn && notificationsPopup) {
+    notificationsBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      notifications = markAllNotificationsRead(currentUser, code);
+      renderNotifications();
+      notificationsPopup.classList.toggle('hidden');
+      if (settingsPopup) settingsPopup.classList.add('hidden');
+    });
+
+    notificationsPopup.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+  }
+
+  if (clearNotificationsBtn) {
+    clearNotificationsBtn.addEventListener('click', () => {
+      clearUserNotifications(currentUser, code);
+      notifications = [];
+      renderNotifications();
     });
   }
 
@@ -315,6 +434,11 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
     leaveApartmentBtn.addEventListener('click', () => {
       if (!code) {
         alert('You are not currently in an apartment.');
+        return;
+      }
+
+      if (!canLeaveApartment) {
+        alert('You cannot leave when you are the only roommate. Delete apartment instead.');
         return;
       }
 
@@ -384,8 +508,10 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
-    const userName = localStorage.getItem('currentUser') || 'You';
-    const apartmentCode = localStorage.getItem('currentApartment') || null;
+    const access = requireApartmentMembership();
+    if (!access || !access.apartmentCode) return;
+    const userName = access.currentUser;
+    const apartmentCode = access.apartmentCode;
     renderHomePage(container, userName, apartmentCode);
   }
 });
