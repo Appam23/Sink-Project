@@ -1,4 +1,5 @@
 import { getApartmentItem, setApartmentItem } from './storage.js';
+import { requireApartmentMembership } from './auth.js';
 
 function renderGroupChatPage(container, userName = 'You') {
   // Clear container
@@ -79,7 +80,9 @@ function renderGroupChatPage(container, userName = 'You') {
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
-    const userName = localStorage.getItem('currentUser') || 'You';
+    const access = requireApartmentMembership();
+    if (!access || !access.apartmentCode) return;
+    const userName = access.currentUser;
     renderGroupChatPage(container, userName);
   }
 });
