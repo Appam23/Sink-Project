@@ -2,6 +2,57 @@
 import { requireApartmentMembership } from './auth.js';
 import { addNotificationForUser } from './notifications.js';
 
+const MAX_IMAGE_DIMENSION = 1280;
+const IMAGE_QUALITY = 0.72;
+
+function isQuotaError(error) {
+  if (!error) return false;
+  return error.name === 'QuotaExceededError' || error.code === 22 || error.code === 1014;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAGE_QUALITY) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+      if (!width || !height) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
+      const targetWidth = Math.max(1, Math.round(width * scale));
+      const targetHeight = Math.max(1, Math.round(height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+      const normalizedType = outputType && outputType.startsWith('image/') ? outputType : 'image/jpeg';
+      const compressed = canvas.toDataURL(normalizedType, quality);
+      resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 function renderTasksPage(container) {
   container.innerHTML = '';
 
@@ -123,18 +174,21 @@ function renderTasksPage(container) {
   let imageData = null;
   const imagePreview = modal.querySelector('#task-image-preview');
   if (imageInput) {
-    imageInput.addEventListener('change', (e) => {
+    imageInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          imageData = ev.target.result;
+        try {
+          const rawDataUrl = await fileToDataUrl(file);
+          imageData = await compressImageDataUrl(rawDataUrl, file.type);
           if (imagePreview) {
             imagePreview.src = imageData;
             imagePreview.style.display = 'block';
           }
-        };
-        reader.readAsDataURL(file);
+        } catch (_error) {
+          imageData = null;
+          if (imagePreview) imagePreview.style.display = 'none';
+          alert('Image could not be processed. Please try another image.');
+        }
       } else {
         imageData = null;
         if (imagePreview) imagePreview.style.display = 'none';
@@ -337,9 +391,17 @@ function renderTasksPage(container) {
     const timeObj = new Date(`2000-01-01T${time}`);
     const displayTime = isNaN(timeObj.getTime()) ? time : timeObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    const createdTaskId = createTask(room, name, displayDate, displayTime, assignee, imageData);
-    notifyTaskAssigned(name, assignee, createdTaskId);
-    modal.classList.add('hidden');
+    try {
+      const createdTaskId = createTask(room, name, displayDate, displayTime, assignee, imageData);
+      notifyTaskAssigned(name, assignee, createdTaskId);
+      modal.classList.add('hidden');
+    } catch (error) {
+      if (isQuotaError(error)) {
+        alert('This image is too large to save on this device. Please choose a smaller image.');
+        return;
+      }
+      throw error;
+    }
   });
 
   // Click outside modal to close

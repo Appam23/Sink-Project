@@ -1,3 +1,5 @@
+import { getUserByEmail, verifyUserCredentials } from './credentials.js';
+
 export function renderLoginForm(container, renderWelcomePageWithEvents, renderSignupForm) {
   while (container.firstChild) {
     container.removeChild(container.firstChild);
@@ -18,32 +20,46 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
   `;
   container.appendChild(form);
   form.querySelector('#back-btn').onclick = () => renderWelcomePageWithEvents();
-    form.onsubmit = function(e) {
+    form.onsubmit = async function(e) {
       e.preventDefault();
-      // For now, just use the entered email as the user name
       const email = document.getElementById('login-email').value.trim();
-      if (email) {
-        localStorage.setItem('currentUser', email);
-        // Check if user has an apartment already
-        const apartments = JSON.parse(localStorage.getItem('apartments') || '{}');
-        let hasApartment = false;
-        let apartmentCode = null;
-        for (const code of Object.keys(apartments)) {
-          if (apartments[code].includes(email)) {
-            hasApartment = true;
-            apartmentCode = code;
-            localStorage.setItem('currentApartment', code);
-            break;
-          }
+      const password = document.getElementById('login-password').value;
+      const message = document.getElementById('login-message');
+
+      if (!email || !password) {
+        message.innerText = 'Please enter both email and password.';
+        return;
+      }
+
+      const user = getUserByEmail(email);
+      if (!user) {
+        message.innerText = 'No account found for this email. Please sign up first.';
+        return;
+      }
+
+      const valid = await verifyUserCredentials(email, password);
+      if (!valid) {
+        message.innerText = 'Incorrect password.';
+        return;
+      }
+
+      const normalizedEmail = email.toLowerCase();
+      localStorage.setItem('currentUser', normalizedEmail);
+
+      const apartments = JSON.parse(localStorage.getItem('apartments') || '{}');
+      let hasApartment = false;
+      for (const code of Object.keys(apartments)) {
+        if (apartments[code].includes(normalizedEmail)) {
+          hasApartment = true;
+          localStorage.setItem('currentApartment', code);
+          break;
         }
-        // Navigate to home or apartment setup
-        if (hasApartment) {
-          window.location.href = 'home.html';
-        } else {
-          window.location.href = 'apartment_code.html';
-        }
+      }
+
+      if (hasApartment) {
+        window.location.href = 'home.html';
       } else {
-        document.getElementById('login-message').innerText = 'Please enter your email.';
+        window.location.href = 'apartment_code.html';
       }
     };
   // Add event for sign up link
