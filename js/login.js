@@ -1,4 +1,5 @@
 import { getUserByEmail, verifyUserCredentials } from './credentials.js';
+import { migrateUserIdentity } from './identity.js';
 
 export function renderLoginForm(container, renderWelcomePageWithEvents, renderSignupForm) {
   while (container.firstChild) {
@@ -44,16 +45,32 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
       }
 
       const normalizedEmail = email.toLowerCase();
+      const currentUserName = (user.displayName || '').trim() || normalizedEmail;
+      migrateUserIdentity(currentUserName, normalizedEmail);
       localStorage.setItem('currentUser', normalizedEmail);
+      localStorage.setItem('currentUserEmail', normalizedEmail);
 
       const apartments = JSON.parse(localStorage.getItem('apartments') || '{}');
       let hasApartment = false;
+      let apartmentsUpdated = false;
       for (const code of Object.keys(apartments)) {
-        if (apartments[code].includes(normalizedEmail)) {
+        const members = Array.isArray(apartments[code]) ? apartments[code] : [];
+        const matchesName = members.includes(currentUserName);
+        const matchesEmail = members.includes(normalizedEmail);
+        if (matchesName || matchesEmail) {
           hasApartment = true;
+          if (matchesName && !matchesEmail) {
+            members.push(normalizedEmail);
+            apartments[code] = members;
+            apartmentsUpdated = true;
+          }
           localStorage.setItem('currentApartment', code);
           break;
         }
+      }
+
+      if (apartmentsUpdated) {
+        localStorage.setItem('apartments', JSON.stringify(apartments));
       }
 
       if (hasApartment) {

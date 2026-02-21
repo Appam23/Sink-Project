@@ -73,3 +73,17 @@ export async function verifyUserCredentials(email, password) {
   const passwordHash = await hashText(password);
   return user.passwordHash === passwordHash;
 }
+
+export function updateUserDisplayName(email, displayName) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return false;
+
+  const users = getUsersMap();
+  const user = users[normalized];
+  if (!user) return false;
+
+  user.displayName = String(displayName || '').trim();
+  users[normalized] = user;
+  saveUsersMap(users);
+  return true;
+}
