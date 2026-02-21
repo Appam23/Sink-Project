@@ -8,6 +8,11 @@ const MIN_IMAGE_DIMENSION = 480;
 const IMAGE_QUALITY = 0.62;
 const MIN_IMAGE_QUALITY = 0.4;
 const TARGET_IMAGE_DATA_URL_LENGTH = 350000;
+const EMERGENCY_MAX_IMAGE_DIMENSION = 420;
+const EMERGENCY_MIN_IMAGE_DIMENSION = 320;
+const EMERGENCY_IMAGE_QUALITY = 0.34;
+const EMERGENCY_MIN_IMAGE_QUALITY = 0.25;
+const EMERGENCY_TARGET_IMAGE_DATA_URL_LENGTH = 120000;
 
 function isQuotaError(error) {
   if (!error) return false;
@@ -23,8 +28,16 @@ function fileToDataUrl(file) {
   });
 }
 
-function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAGE_QUALITY) {
+function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAGE_QUALITY, options = {}) {
   return new Promise((resolve) => {
+    const {
+      maxDimension = MAX_IMAGE_DIMENSION,
+      minDimension = MIN_IMAGE_DIMENSION,
+      minQuality = MIN_IMAGE_QUALITY,
+      targetLength = TARGET_IMAGE_DATA_URL_LENGTH,
+      maxAttempts = 7,
+    } = options;
+
     const img = new Image();
     img.onload = () => {
       const width = img.naturalWidth || img.width;
@@ -43,12 +56,12 @@ function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAG
       }
 
       const normalizedType = outputType && outputType.startsWith('image/') ? 'image/jpeg' : 'image/jpeg';
-      const minScale = Math.min(1, MIN_IMAGE_DIMENSION / Math.max(width, height));
-      let scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
+      const minScale = Math.min(1, minDimension / Math.max(width, height));
+      let scale = Math.min(1, maxDimension / Math.max(width, height));
       let currentQuality = quality;
       let bestData = dataUrl;
 
-      for (let attempt = 0; attempt < 7; attempt += 1) {
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         const targetWidth = Math.max(1, Math.round(width * scale));
         const targetHeight = Math.max(1, Math.round(height * scale));
         canvas.width = targetWidth;
@@ -60,12 +73,12 @@ function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAG
           bestData = compressed;
         }
 
-        if (bestData.length <= TARGET_IMAGE_DATA_URL_LENGTH) break;
+        if (bestData.length <= targetLength) break;
 
         if (scale > minScale + 0.001) {
           scale = Math.max(minScale, scale * 0.82);
-        } else if (currentQuality > MIN_IMAGE_QUALITY) {
-          currentQuality = Math.max(MIN_IMAGE_QUALITY, currentQuality - 0.08);
+        } else if (currentQuality > minQuality) {
+          currentQuality = Math.max(minQuality, currentQuality - 0.08);
         } else {
           break;
         }
@@ -75,6 +88,16 @@ function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAG
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
+  });
+}
+
+function aggressiveCompressImageDataUrl(dataUrl) {
+  return compressImageDataUrl(dataUrl, 'image/jpeg', EMERGENCY_IMAGE_QUALITY, {
+    maxDimension: EMERGENCY_MAX_IMAGE_DIMENSION,
+    minDimension: EMERGENCY_MIN_IMAGE_DIMENSION,
+    minQuality: EMERGENCY_MIN_IMAGE_QUALITY,
+    targetLength: EMERGENCY_TARGET_IMAGE_DATA_URL_LENGTH,
+    maxAttempts: 10,
   });
 }
 
@@ -253,12 +276,40 @@ function renderGroupChatPage(container, userName = 'You') {
         setApartmentItem('groupChatMessages', messages);
       } catch (error) {
         messages.pop();
-        setUploadState(false, '');
         if (isQuotaError(error)) {
-          alert('This image is too large to save on this device. Please choose a smaller image.');
-          return;
+          const isImageAttachment = attachmentData && attachmentType && attachmentType.startsWith('image/');
+          if (isImageAttachment) {
+            setUploadState(true, 'Reducing image size...');
+            const reducedAttachmentData = await aggressiveCompressImageDataUrl(attachmentData);
+            messages.push({
+              sender: userName,
+              text,
+              attachmentData: reducedAttachmentData,
+              attachmentType,
+              attachmentName,
+            });
+            try {
+              setUploadState(true, 'Saving message...');
+              setApartmentItem('groupChatMessages', messages);
+              pendingAttachmentData = reducedAttachmentData;
+            } catch (retryError) {
+              messages.pop();
+              setUploadState(false, '');
+              if (isQuotaError(retryError)) {
+                alert('Storage is almost full on this device. Try removing older image messages or choose a smaller image.');
+                return;
+              }
+              throw retryError;
+            }
+          } else {
+            setUploadState(false, '');
+            alert('Storage is almost full on this device. Try removing older image messages.');
+            return;
+          }
+        } else {
+          setUploadState(false, '');
+          throw error;
         }
-        throw error;
       }
       setUploadState(false, '');
       renderMessages();
