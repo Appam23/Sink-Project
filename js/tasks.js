@@ -3,8 +3,11 @@ import { requireApartmentMembership } from './auth.js';
 import { addNotificationForUser } from './notifications.js';
 import { getUserByEmail } from './credentials.js';
 
-const MAX_IMAGE_DIMENSION = 1280;
-const IMAGE_QUALITY = 0.72;
+const MAX_IMAGE_DIMENSION = 960;
+const MIN_IMAGE_DIMENSION = 480;
+const IMAGE_QUALITY = 0.62;
+const MIN_IMAGE_QUALITY = 0.4;
+const TARGET_IMAGE_DATA_URL_LENGTH = 350000;
 
 function isQuotaError(error) {
   if (!error) return false;
@@ -31,23 +34,43 @@ function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAG
         return;
       }
 
-      const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
-      const targetWidth = Math.max(1, Math.round(width * scale));
-      const targetHeight = Math.max(1, Math.round(height * scale));
       const canvas = document.createElement('canvas');
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         resolve(dataUrl);
         return;
       }
 
-      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-      const normalizedType = outputType && outputType.startsWith('image/') ? outputType : 'image/jpeg';
-      const compressed = canvas.toDataURL(normalizedType, quality);
-      resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+      const normalizedType = outputType && outputType.startsWith('image/') ? 'image/jpeg' : 'image/jpeg';
+      const minScale = Math.min(1, MIN_IMAGE_DIMENSION / Math.max(width, height));
+      let scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
+      let currentQuality = quality;
+      let bestData = dataUrl;
+
+      for (let attempt = 0; attempt < 7; attempt += 1) {
+        const targetWidth = Math.max(1, Math.round(width * scale));
+        const targetHeight = Math.max(1, Math.round(height * scale));
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+        const compressed = canvas.toDataURL(normalizedType, currentQuality);
+        if (compressed.length < bestData.length) {
+          bestData = compressed;
+        }
+
+        if (bestData.length <= TARGET_IMAGE_DATA_URL_LENGTH) break;
+
+        if (scale > minScale + 0.001) {
+          scale = Math.max(minScale, scale * 0.82);
+        } else if (currentQuality > MIN_IMAGE_QUALITY) {
+          currentQuality = Math.max(MIN_IMAGE_QUALITY, currentQuality - 0.08);
+        } else {
+          break;
+        }
+      }
+
+      resolve(bestData);
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
