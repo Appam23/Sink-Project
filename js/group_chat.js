@@ -67,7 +67,10 @@ function renderGroupChatPage(container, userName = 'You') {
     </div>
     <div class="chat-box" id="chat-box"></div>
     <form class="chat-input-form" id="chat-input-form">
-      <input type="text" id="chat-message-input" placeholder="Type a message..." />
+      <div class="chat-compose-box" id="chat-compose-box">
+        <div id="chat-attachment-preview" class="chat-attachment-preview hidden"></div>
+        <input type="text" id="chat-message-input" placeholder="Type a message..." />
+      </div>
       <input type="file" id="chat-file-input" style="display: none;" />
       <button type="button" id="attach-file-btn">📎</button>
       <button type="submit" id="chat-send-btn">Send</button>
@@ -89,7 +92,12 @@ function renderGroupChatPage(container, userName = 'You') {
   const fileInput = page.querySelector('#chat-file-input');
   const attachFileBtn = page.querySelector('#attach-file-btn');
   const sendBtn = page.querySelector('#chat-send-btn');
+  const attachmentPreview = page.querySelector('#chat-attachment-preview');
   const uploadStatus = page.querySelector('#chat-upload-status');
+
+  let pendingAttachmentData = null;
+  let pendingAttachmentType = '';
+  let pendingAttachmentName = '';
 
   const profilesRaw = localStorage.getItem('profiles');
   const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
@@ -137,30 +145,76 @@ function renderGroupChatPage(container, userName = 'You') {
     if (attachFileBtn) attachFileBtn.disabled = isBusy;
   }
 
+  function clearPendingAttachment(clearInput = false) {
+    pendingAttachmentData = null;
+    pendingAttachmentType = '';
+    pendingAttachmentName = '';
+    if (clearInput) fileInput.value = '';
+    if (attachmentPreview) {
+      attachmentPreview.innerHTML = '';
+      attachmentPreview.classList.add('hidden');
+    }
+  }
+
+  function renderAttachmentPreview() {
+    if (!attachmentPreview) return;
+    if (!pendingAttachmentData) {
+      attachmentPreview.innerHTML = '';
+      attachmentPreview.classList.add('hidden');
+      return;
+    }
+
+    const isImage = pendingAttachmentType.startsWith('image/');
+    attachmentPreview.classList.remove('hidden');
+    attachmentPreview.innerHTML = isImage
+      ? `
+        <img src="${pendingAttachmentData}" alt="${pendingAttachmentName || 'selected image'}" class="preview-image" />
+      `
+      : `
+        <div class="preview-file-name">${pendingAttachmentName || 'Attached file'}</div>
+      `;
+  }
+
+  async function prepareAttachmentFromFile(file) {
+    if (!file) {
+      clearPendingAttachment(false);
+      return;
+    }
+
+    try {
+      setUploadState(true, 'Processing image...');
+      let data = await fileToDataUrl(file);
+      const type = file.type || '';
+      const name = file.name || 'Attached File';
+
+      if (data && type.startsWith('image/')) {
+        setUploadState(true, 'Compressing image...');
+        data = await compressImageDataUrl(data, type);
+      }
+
+      pendingAttachmentData = data;
+      pendingAttachmentType = type;
+      pendingAttachmentName = name;
+      renderAttachmentPreview();
+    } catch (_error) {
+      clearPendingAttachment(false);
+      alert('Attachment could not be processed. Please try another file.');
+    } finally {
+      setUploadState(false, '');
+    }
+  }
+
   chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = messageInput.value.trim();
     const file = fileInput.files[0];
-    let attachmentData = null;
-    let attachmentType = '';
-    let attachmentName = '';
-
-    if (file) {
-      try {
-        setUploadState(true, 'Processing image...');
-        attachmentData = await fileToDataUrl(file);
-        attachmentType = file.type || '';
-        attachmentName = file.name || 'Attached File';
-        if (attachmentData && attachmentType.startsWith('image/')) {
-          setUploadState(true, 'Compressing image...');
-          attachmentData = await compressImageDataUrl(attachmentData, attachmentType);
-        }
-      } catch (_error) {
-        attachmentData = null;
-      } finally {
-        setUploadState(false, '');
-      }
+    if (file && !pendingAttachmentData) {
+      await prepareAttachmentFromFile(file);
     }
+
+    const attachmentData = pendingAttachmentData;
+    const attachmentType = pendingAttachmentType;
+    const attachmentName = pendingAttachmentName;
 
     if (text || attachmentData) {
       messages.push({
@@ -185,11 +239,21 @@ function renderGroupChatPage(container, userName = 'You') {
       setUploadState(false, '');
       renderMessages();
       messageInput.value = '';
-      fileInput.value = '';
+      clearPendingAttachment(true);
     }
   });
 
   attachFileBtn.addEventListener('click', () => fileInput.click());
+  messageInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Backspace') return;
+    if (messageInput.value.length > 0) return;
+    if (!pendingAttachmentData) return;
+    clearPendingAttachment(true);
+  });
+  fileInput.addEventListener('change', async (event) => {
+    const selected = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+    await prepareAttachmentFromFile(selected);
+  });
 }
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
