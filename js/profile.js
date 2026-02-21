@@ -1,4 +1,7 @@
 import { requireApartmentMembership } from './auth.js';
+import { updateUserDisplayName } from './credentials.js';
+
+const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
 
 export function renderProfilePage(container, userName = 'You') {
   // Clear container
@@ -40,6 +43,9 @@ export function renderProfilePage(container, userName = 'You') {
   const picInput = profileDiv.querySelector('#profile-pic-input');
   const picPreview = profileDiv.querySelector('#profile-pic-preview');
   const iconSpan = profileDiv.querySelector('#profile-pic-icon');
+  if (picPreview) {
+    picPreview.src = DEFAULT_PROFILE_PICTURE;
+  }
 
   // Prefill from stored profiles if available
   const currentUserKey = localStorage.getItem('currentUser') || userName;
@@ -64,6 +70,8 @@ export function renderProfilePage(container, userName = 'You') {
     if (existing.picture) {
       picPreview.src = existing.picture;
       if (iconSpan) iconSpan.style.display = 'none';
+    } else if (iconSpan) {
+      iconSpan.style.display = 'block';
     }
   }
 
@@ -78,8 +86,11 @@ export function renderProfilePage(container, userName = 'You') {
   if (profileForm) {
     profileForm.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const firstNameInput = document.getElementById('first-name').value.trim();
+      const currentUser = localStorage.getItem('currentUser') || userName;
+
       const profileData = {
-        firstName: document.getElementById('first-name').value.trim(),
+        firstName: firstNameInput,
         lastName: document.getElementById('last-name').value.trim(),
         age: document.getElementById('age').value.trim(),
         apartmentNo: document.getElementById('Apartment-No').value.trim(),
@@ -88,11 +99,16 @@ export function renderProfilePage(container, userName = 'You') {
         bio: document.getElementById('Bio').value.trim(),
         picture: picPreview ? picPreview.src : ''
       };
-      const currentUser = localStorage.getItem('currentUser') || userName;
       const profilesRaw2 = localStorage.getItem('profiles');
       const profiles2 = profilesRaw2 ? JSON.parse(profilesRaw2) : {};
       profiles2[currentUser] = profileData;
       localStorage.setItem('profiles', JSON.stringify(profiles2));
+
+      const currentUserEmail = localStorage.getItem('currentUserEmail') || currentUser;
+      if (currentUserEmail && firstNameInput) {
+        updateUserDisplayName(currentUserEmail, firstNameInput);
+      }
+
       window.location.href = 'home.html';
     });
   }

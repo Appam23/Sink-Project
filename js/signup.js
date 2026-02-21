@@ -29,14 +29,15 @@ export function renderSignupForm(container, renderWelcomePageWithEvents, renderL
     const password = document.getElementById('signup-password').value;
     const message = document.getElementById('signup-message');
 
-    if (!email || !password) {
-      message.innerText = 'Please enter both email and password.';
+    if (!name || !email || !password) {
+      message.innerText = 'Please enter name, email, and password.';
       return;
     }
 
     try {
       await createUser(email, password, name);
       localStorage.setItem('currentUser', email.toLowerCase());
+      localStorage.setItem('currentUserEmail', email.toLowerCase());
       window.location.href = 'apartment_code.html';
     } catch (error) {
       message.innerText = error && error.message ? error.message : 'Unable to create account.';

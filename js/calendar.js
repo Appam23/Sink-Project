@@ -52,8 +52,21 @@ function renderCalendarPage(container) {
             <div class="event-name">${event.name}</div>
             <div class="event-location">${event.room}</div>
           </div>
-          <div class="event-time">${event.time}</div>
+          <div class="event-time">
+            <div>${event.time}</div>
+            <button type="button" class="delete-event-btn">Delete</button>
+          </div>
         `;
+
+        const deleteBtn = eventRow.querySelector('.delete-event-btn');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', () => {
+            events.splice(index, 1);
+            setApartmentItem('calendarEvents', events);
+            renderCalendarPage(container);
+          });
+        }
+
         eventsList.appendChild(eventRow);
       });
     }

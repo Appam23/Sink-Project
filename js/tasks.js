@@ -1,6 +1,7 @@
 // tasks.js
 import { requireApartmentMembership } from './auth.js';
 import { addNotificationForUser } from './notifications.js';
+import { getUserByEmail } from './credentials.js';
 
 const MAX_IMAGE_DIMENSION = 1280;
 const IMAGE_QUALITY = 0.72;
@@ -55,8 +56,31 @@ function compressImageDataUrl(dataUrl, outputType = 'image/jpeg', quality = IMAG
 
 function renderTasksPage(container) {
   container.innerHTML = '';
+  container.classList.add('tasks-container');
 
   const currentUser = localStorage.getItem('currentUser') || 'You';
+  const profilesRaw = localStorage.getItem('profiles');
+  const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
+
+  function toDisplayName(value) {
+    const input = String(value || '').trim();
+    if (!input) return 'Roommate';
+    return input.charAt(0).toUpperCase() + input.slice(1);
+  }
+
+  function getAssigneeDisplayName(memberId) {
+    const profileFirstName = (profiles[memberId] && profiles[memberId].firstName) ? String(profiles[memberId].firstName).trim() : '';
+    if (profileFirstName) return toDisplayName(profileFirstName);
+
+    const credential = getUserByEmail(memberId);
+    const credentialName = credential && credential.displayName ? String(credential.displayName).trim() : '';
+    if (credentialName) return toDisplayName(credentialName);
+
+    if (String(memberId || '').includes('@')) {
+      return toDisplayName(String(memberId).split('@')[0]);
+    }
+    return toDisplayName(memberId);
+  }
 
   // Find current apartment code and members
   const apartmentsRaw = localStorage.getItem('apartments');
@@ -165,7 +189,7 @@ function renderTasksPage(container) {
   uniqueMembers.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m;
-    opt.textContent = m;
+    opt.textContent = getAssigneeDisplayName(m);
     assigneeSelect.appendChild(opt);
   });
 
@@ -208,10 +232,10 @@ function renderTasksPage(container) {
     localStorage.setItem(storageKey, JSON.stringify(arr));
   }
 
-  function createTask(room, title, date, time, assignee, image) {
+  function createTask(room, title, date, time, assignee, assigneeName, image) {
     const tasks = loadTasks();
     const id = Date.now();
-    tasks.push({ id, room, title, date, time, assignee, image: image || null });
+    tasks.push({ id, room, title, date, time, assignee, assigneeName: assigneeName || '', image: image || null });
     saveTasks(tasks);
     renderTasks();
     return id;
@@ -285,12 +309,13 @@ function renderTasksPage(container) {
       row.setAttribute('data-task-id', String(task.id));
       const thumbHtml = task.image ? `<img class="task-thumb" src="${task.image}" alt="thumb"/>` : '';
       const viewBtnHtml = task.image ? `<button class="view-btn">View</button>` : '';
+      const assigneeLabel = task.assigneeName || getAssigneeDisplayName(task.assignee);
       row.innerHTML = `
         <div class="event-date"><div class="due-label">Due by</div><div class="due-date">${task.date}</div></div>
         <div class="event-details">
           ${thumbHtml}
           <div class="event-name">${task.title}</div>
-          <div class="event-location">${task.room} • ${task.assignee}</div>
+          <div class="event-location">${task.room} • ${assigneeLabel}</div>
         </div>
         <div class="event-time">
           ${task.time}
@@ -383,6 +408,7 @@ function renderTasksPage(container) {
     let room = modal.querySelector('#task-room').value;
     const custom = modal.querySelector('#task-custom-room').value.trim();
     const assignee = modal.querySelector('#task-assignee').value;
+    const assigneeName = assignee === 'Everyone' ? 'Everyone' : getAssigneeDisplayName(assignee);
     if (room === 'Custom') room = custom || 'Other';
 
     // Format date and time for display similar to calendar
@@ -392,7 +418,7 @@ function renderTasksPage(container) {
     const displayTime = isNaN(timeObj.getTime()) ? time : timeObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
     try {
-      const createdTaskId = createTask(room, name, displayDate, displayTime, assignee, imageData);
+      const createdTaskId = createTask(room, name, displayDate, displayTime, assignee, assigneeName, imageData);
       notifyTaskAssigned(name, assignee, createdTaskId);
       modal.classList.add('hidden');
     } catch (error) {

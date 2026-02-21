@@ -2,6 +2,8 @@ import { renderProfilePage } from './profile.js';
 import { requireApartmentMembership } from './auth.js';
 import { clearUserNotifications, getUserNotifications, markAllNotificationsRead } from './notifications.js';
 
+const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
+
 function parseJsonStorage(key, fallback) {
   const raw = localStorage.getItem(key);
   if (!raw) return fallback;
@@ -265,7 +267,7 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
     overlay.innerHTML = `
       <div class="roommate-profile-card" role="dialog" aria-label="Roommate profile">
         <div class="roommate-profile-header">
-          <img src="${memberProfile.picture || 'https://via.placeholder.com/96'}" class="roommate-profile-image" alt="${memberDisplay} profile" />
+          <img src="${memberProfile.picture || DEFAULT_PROFILE_PICTURE}" class="roommate-profile-image" alt="${memberDisplay} profile" />
           <div class="roommate-profile-name">${memberDisplay}</div>
         </div>
         <div class="roommate-profile-info">
@@ -295,7 +297,7 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   if (usernameEl) usernameEl.textContent = getDisplayName(myProfile, currentUser || userName);
   const myPicEl = page.querySelector('#home-profile-pic');
   if (myPicEl) {
-    myPicEl.src = myProfile.picture || 'https://via.placeholder.com/64';
+    myPicEl.src = myProfile.picture || DEFAULT_PROFILE_PICTURE;
   }
 
   // Apartment code display
@@ -317,7 +319,7 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
         const memberProfile = profiles[m] || {};
         const memberDisplay = getDisplayName(memberProfile, m);
         row.innerHTML = `
-          <img src="${memberProfile.picture || 'https://via.placeholder.com/48'}" class="roommate-pic" />
+          <img src="${memberProfile.picture || DEFAULT_PROFILE_PICTURE}" class="roommate-pic" />
           <div class="roommate-name">${memberDisplay}</div>
         `;
         row.addEventListener('click', () => {

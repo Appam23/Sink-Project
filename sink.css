@@ -989,6 +989,7 @@ button:hover, .main-btn:hover {
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     transition: all 0.2s ease;
     margin: 20px 0;
+    height: 100px;
 }
 
 .event-row:hover {
@@ -1056,6 +1057,24 @@ button:hover, .main-btn:hover {
     font-weight: 500;
     color: #47d9ca;
     text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.delete-event-btn {
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 0.8em;
+}
+
+.delete-event-btn:hover {
+    background: #ff5252;
 }
 
 .no-events {
@@ -1100,6 +1119,45 @@ button:hover, .main-btn:hover {
 
 .add-event-btn:active {
     transform: scale(0.95);
+}
+
+#add-task-btn {
+    position: absolute;
+    right: 50px;
+    bottom: 90px;
+    z-index: 200;
+}
+
+@media (max-width: 480px) {
+    #add-task-btn {
+        right: 16px;
+        bottom: 90px;
+    }
+}
+
+.container.tasks-container {
+    overflow: hidden;
+}
+
+.container.tasks-container .tasks-page {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.container.tasks-container .tasks-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-bottom: 0;
+    padding-bottom: 10px;
+}
+
+.container.tasks-container .profile-footer {
+    flex: 0 0 56px;
+    margin-top: 0;
 }
 
 /* Event modal styles */
@@ -1290,6 +1348,13 @@ button:hover, .main-btn:hover {
 
 .chat-input-form button:hover {
     background: #35c4b8;
+}
+
+.chat-upload-status {
+    min-height: 18px;
+    padding: 0 12px 8px;
+    color: #6d6d6d;
+    font-size: 0.85rem;
 }
 hr{
     background-color: transparent;
