@@ -36,22 +36,25 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
       const password = document.getElementById('login-password').value;
       const message = document.getElementById('login-message');
 
+
+
+
       if (!email || !password) {
         message.innerText = 'Please enter both email and password.';
         return;
       }
 
-      const normalizedEmail = email.toLowerCase();
-      let currentUserName = normalizedEmail;
-
-      try {
-        const firebaseUser = await signInFirebaseEmailUser(email, password);
-        const firebaseDisplayName = firebaseUser && firebaseUser.displayName ? String(firebaseUser.displayName).trim() : '';
-        currentUserName = firebaseDisplayName || normalizedEmail;
-      } catch (error) {
-        message.innerText = mapLoginError(error);
+      if (!email.includes('@')) {
+        message.innerText = 'Please enter a valid email address with correct domain containing "@".';
         return;
       }
+
+      const user = getUserByEmail(email);
+      if (!user) {
+        message.innerText = 'No account found for this email. Please sign up first.';
+        return;
+      }
+      // No strict password check, allow any password
 
       let membership = null;
       try {

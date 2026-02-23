@@ -76,31 +76,11 @@ function setupCreateCodeSection(page, container, userName) {
 	}
 
 	  if (createBtn && createdCode && continueBtn) {
-		   createBtn.addEventListener('click', async () => {
-			   createBtn.disabled = true;
-			   let created = null;
-			   for (let attempt = 0; attempt < 8; attempt += 1) {
-				   const code = generateApartmentCode();
-				   try {
-					   await createApartment(code, userName);
-					   created = code;
-					   break;
-				   } catch (error) {
-					   if (!String(error && error.message || '').includes('already exists')) {
-						   createdCode.textContent = 'Unable to create apartment code right now. Please try again.';
-						   createBtn.disabled = false;
-						   return;
-					   }
-				   }
-			   }
-
-			   if (!created) {
-				   createdCode.textContent = 'Unable to create a unique code right now. Please try again.';
-				   createBtn.disabled = false;
-				   return;
-			   }
-
-			   createdCode.textContent = `Your apartment code: ${created}`;
+		   createBtn.addEventListener('click', () => {
+			   const code = generateApartmentCode();
+			   createdCode.textContent = `Your apartment code: ${code}`;
+			   createdCode.style.color = 'green';
+			   saveNewApartment(code, userName);
 			   createBtn.style.display = 'none';
 			   continueBtn.style.display = '';
 		   });
