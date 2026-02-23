@@ -75,6 +75,7 @@ function setupCreateCodeSection(page, container, userName) {
 		   createBtn.addEventListener('click', () => {
 			   const code = generateApartmentCode();
 			   createdCode.textContent = `Your apartment code: ${code}`;
+			   createdCode.style.color = 'green';
 			   saveNewApartment(code, userName);
 			   createBtn.style.display = 'none';
 			   continueBtn.style.display = '';

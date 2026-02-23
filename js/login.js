@@ -27,8 +27,16 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
       const password = document.getElementById('login-password').value;
       const message = document.getElementById('login-message');
 
+
+
+
       if (!email || !password) {
         message.innerText = 'Please enter both email and password.';
+        return;
+      }
+
+      if (!email.includes('@')) {
+        message.innerText = 'Please enter a valid email address with correct domain containing "@".';
         return;
       }
 
@@ -37,12 +45,7 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
         message.innerText = 'No account found for this email. Please sign up first.';
         return;
       }
-
-      const valid = await verifyUserCredentials(email, password);
-      if (!valid) {
-        message.innerText = 'Incorrect password.';
-        return;
-      }
+      // No strict password check, allow any password
 
       const normalizedEmail = email.toLowerCase();
       const currentUserName = (user.displayName || '').trim() || normalizedEmail;
