@@ -2,7 +2,20 @@ import { renderWelcomePage } from './welcome.js';
 import { renderLoginForm } from './login.js';
 import { renderSignupForm } from './signup.js';
 
+async function bootstrapFirebase() {
+  try {
+    const { initializeFirebaseServices } = await import('./firebase.js');
+    const { error } = initializeFirebaseServices();
+    if (error) {
+      console.warn('Firebase initialized with errors:', error);
+    }
+  } catch (error) {
+    console.warn('Firebase startup skipped:', error);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  bootstrapFirebase();
   const container = document.querySelector('.container');
 
   function attachWelcomeEvents() {

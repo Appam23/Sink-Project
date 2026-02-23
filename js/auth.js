@@ -1,39 +1,8 @@
-function parseJsonStorage(key, fallback) {
-  const raw = localStorage.getItem(key);
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
+import { findApartmentForUser } from './apartments.js';
+import { getFirebaseAuthCurrentUserIdentifier, waitForFirebaseAuthState } from './firebase.js';
 
 export function getCurrentUser() {
-  return localStorage.getItem('currentUser');
-}
-
-export function getApartments() {
-  return parseJsonStorage('apartments', {});
-}
-
-export function getUserApartmentCode(userName, apartments = getApartments()) {
-  if (!userName) return null;
-
-  const currentApartment = localStorage.getItem('currentApartment');
-  if (
-    currentApartment &&
-    Array.isArray(apartments[currentApartment]) &&
-    apartments[currentApartment].includes(userName)
-  ) {
-    return currentApartment;
-  }
-
-  for (const code of Object.keys(apartments)) {
-    const members = apartments[code] || [];
-    if (members.includes(userName)) return code;
-  }
-
-  return null;
+  return getFirebaseAuthCurrentUserIdentifier();
 }
 
 export function requireLogin(redirectTo = 'index.html') {
@@ -45,34 +14,51 @@ export function requireLogin(redirectTo = 'index.html') {
   return currentUser;
 }
 
-export function requireApartmentMembership(options = {}) {
+export async function requireLoginAsync(redirectTo = 'index.html') {
+  try {
+    await waitForFirebaseAuthState();
+  } catch {
+    window.location.href = redirectTo;
+    return null;
+  }
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    window.location.href = redirectTo;
+    return null;
+  }
+  return currentUser;
+}
+
+
+export async function requireApartmentMembershipAsync(options = {}) {
   const {
     redirectIfNoLogin = 'index.html',
     redirectIfNoApartment = 'apartment_code.html',
     redirectIfHasApartment = null,
   } = options;
 
-  const currentUser = requireLogin(redirectIfNoLogin);
+  const currentUser = await requireLoginAsync(redirectIfNoLogin);
   if (!currentUser) return null;
 
-  const apartments = getApartments();
-  const apartmentCode = getUserApartmentCode(currentUser, apartments);
+  let apartment = null;
+  try {
+    apartment = await findApartmentForUser(currentUser);
+  } catch (_error) {
+    apartment = null;
+  }
+  const apartmentCode = apartment && apartment.code ? apartment.code : null;
 
   if (!apartmentCode) {
     if (window.location.pathname && !window.location.pathname.endsWith(redirectIfNoApartment)) {
       window.location.href = redirectIfNoApartment;
     }
-    return { currentUser, apartmentCode: null, apartments };
-  }
-
-  if (localStorage.getItem('currentApartment') !== apartmentCode) {
-    localStorage.setItem('currentApartment', apartmentCode);
+    return { currentUser, apartmentCode: null, apartment: null };
   }
 
   if (redirectIfHasApartment && window.location.pathname.endsWith('apartment_code.html')) {
     window.location.href = redirectIfHasApartment;
-    return { currentUser, apartmentCode, apartments };
+    return { currentUser, apartmentCode, apartment };
   }
 
-  return { currentUser, apartmentCode, apartments };
+  return { currentUser, apartmentCode, apartment };
 }

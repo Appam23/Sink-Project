@@ -1,7 +1,18 @@
 // tasks.js
-import { requireApartmentMembership } from './auth.js';
+import { requireApartmentMembershipAsync } from './auth.js';
 import { addNotificationForUser } from './notifications.js';
-import { getUserByEmail } from './credentials.js';
+import { initializeFirebaseServices } from './firebase.js';
+import { getApartmentProfilesMap } from './profiles.js';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+} from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const MAX_IMAGE_DIMENSION = 960;
 const MIN_IMAGE_DIMENSION = 480;
@@ -100,13 +111,15 @@ function aggressiveCompressImageDataUrl(dataUrl) {
   });
 }
 
-function renderTasksPage(container) {
+async function renderTasksPage(container, access) {
   container.innerHTML = '';
   container.classList.add('tasks-container');
 
-  const currentUser = localStorage.getItem('currentUser') || 'You';
-  const profilesRaw = localStorage.getItem('profiles');
-  const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
+  const currentUser = access && access.currentUser ? access.currentUser : 'You';
+  const apartmentCode = access && access.apartmentCode ? access.apartmentCode : null;
+  const members = (access && access.apartment && Array.isArray(access.apartment.members)) ? access.apartment.members : [];
+
+  const profiles = apartmentCode ? await getApartmentProfilesMap(apartmentCode) : {};
 
   function toDisplayName(value) {
     const input = String(value || '').trim();
@@ -118,32 +131,10 @@ function renderTasksPage(container) {
     const profileFirstName = (profiles[memberId] && profiles[memberId].firstName) ? String(profiles[memberId].firstName).trim() : '';
     if (profileFirstName) return toDisplayName(profileFirstName);
 
-    const credential = getUserByEmail(memberId);
-    const credentialName = credential && credential.displayName ? String(credential.displayName).trim() : '';
-    if (credentialName) return toDisplayName(credentialName);
-
     if (String(memberId || '').includes('@')) {
       return toDisplayName(String(memberId).split('@')[0]);
     }
     return toDisplayName(memberId);
-  }
-
-  // Find current apartment code and members
-  const apartmentsRaw = localStorage.getItem('apartments');
-  const apartments = apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
-  let apartmentCode = localStorage.getItem('currentApartment') || null;
-  let members = [];
-  if (!apartmentCode) {
-    for (const k of Object.keys(apartments)) {
-      const arr = apartments[k] || [];
-      if (arr.includes(currentUser)) {
-        apartmentCode = k;
-        members = arr;
-        break;
-      }
-    }
-  } else {
-    members = apartments[apartmentCode] || [];
   }
 
   if (members && !members.includes(currentUser)) members.push(currentUser);
@@ -266,44 +257,78 @@ function renderTasksPage(container) {
     });
   }
 
-  // Tasks storage helper
-  const storageKey = `tasks_${apartmentCode || 'no_apartment'}`;
+  const { db, error: firebaseInitError } = initializeFirebaseServices();
+  const tasksCollectionRef = db && apartmentCode
+    ? collection(db, 'apartments', apartmentCode, 'tasks')
+    : null;
 
-  function loadTasks() {
-    const raw = localStorage.getItem(storageKey);
-    return raw ? JSON.parse(raw) : [];
+  if (!tasksCollectionRef) {
+    console.error('Tasks require Firebase Firestore and a valid apartment context.', firebaseInitError || null);
+    alert('Tasks are unavailable until Firebase is connected. Please refresh and sign in again.');
+    return;
   }
 
-  function saveTasks(arr) {
-    localStorage.setItem(storageKey, JSON.stringify(arr));
+  async function loadTasksFromFirestore() {
+    const q = query(tasksCollectionRef, orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((taskDoc) => {
+      const data = taskDoc.data() || {};
+      return {
+        id: taskDoc.id,
+        room: String(data.room || 'Other'),
+        title: String(data.title || ''),
+        date: String(data.date || ''),
+        time: String(data.time || ''),
+        assignee: String(data.assignee || ''),
+        assigneeName: String(data.assigneeName || ''),
+        image: data.image || data.imageUrl || null,
+      };
+    });
   }
 
-  function createTask(room, title, date, time, assignee, assigneeName, image) {
-    const tasks = loadTasks();
-    const id = Date.now();
-    tasks.push({ id, room, title, date, time, assignee, assigneeName: assigneeName || '', image: image || null });
-    saveTasks(tasks);
-    renderTasks();
-    return id;
+  async function loadTasks() {
+    return loadTasksFromFirestore();
   }
 
-  function notifyTaskAssigned(taskTitle, assignee, taskId) {
+  async function createTask(room, title, date, time, assignee, assigneeName, image) {
+    const taskPayload = {
+      room,
+      title,
+      date,
+      time,
+      assignee,
+      assigneeName: assigneeName || '',
+      image: image || null,
+      createdBy: currentUser,
+    };
+
+    const taskRef = await addDoc(tasksCollectionRef, {
+      ...taskPayload,
+      createdAt: serverTimestamp(),
+    });
+
+    await renderTasks();
+    return taskRef.id;
+  }
+
+  async function notifyTaskAssigned(taskTitle, assignee, taskId) {
     if (!apartmentCode || !taskTitle || !taskId) return;
 
     if (assignee === 'Everyone') {
-      uniqueMembers.forEach((member) => {
+      const writePromises = uniqueMembers.map((member) => {
         if (member === currentUser) return;
-        addNotificationForUser(member, apartmentCode, {
+        return addNotificationForUser(member, apartmentCode, {
           type: 'task',
           message: `${currentUser} assigned a task to everyone: ${taskTitle}`,
           link: `tasks.html?taskId=${taskId}`,
         });
       });
+      await Promise.all(writePromises.filter(Boolean));
       return;
     }
 
     if (!assignee || assignee === currentUser) return;
-    addNotificationForUser(assignee, apartmentCode, {
+    await addNotificationForUser(assignee, apartmentCode, {
       type: 'task',
       message: `${currentUser} assigned you a task: ${taskTitle}`,
       link: `tasks.html?taskId=${taskId}`,
@@ -315,11 +340,10 @@ function renderTasksPage(container) {
     deleteTask(id);
   }
 
-  function deleteTask(id) {
-    let tasks = loadTasks();
-    tasks = tasks.filter(x => x.id !== id);
-    saveTasks(tasks);
-    renderTasks();
+  async function deleteTask(id) {
+    const normalizedId = String(id);
+    await deleteDoc(doc(tasksCollectionRef, normalizedId));
+    await renderTasks();
   }
 
   function showImageModal(src) {
@@ -338,8 +362,8 @@ function renderTasksPage(container) {
     m.addEventListener('click', (e) => { if (e.target === m) m.remove(); });
   }
 
-  function renderTasks() {
-    const tasks = loadTasks();
+  async function renderTasks() {
+    const tasks = await loadTasks();
     const rooms = {
       'Kitchen': page.querySelector('#kitchen-list'),
       'Living Room': page.querySelector('#livingroom-list'),
@@ -370,7 +394,12 @@ function renderTasksPage(container) {
       `;
 
       const btn = row.querySelector('.complete-btn');
-      btn.addEventListener('click', () => deleteTask(task.id));
+      btn.addEventListener('click', () => {
+        deleteTask(task.id).catch((error) => {
+          console.error('Task delete failed:', error);
+          alert('Unable to complete this task right now. Please try again.');
+        });
+      });
 
       const viewBtn = row.querySelector('.view-btn');
       if (viewBtn) viewBtn.addEventListener('click', () => showImageModal(task.image));
@@ -465,8 +494,8 @@ function renderTasksPage(container) {
 
     let imageToSave = imageData;
     try {
-      const createdTaskId = createTask(room, name, displayDate, displayTime, assignee, assigneeName, imageToSave);
-      notifyTaskAssigned(name, assignee, createdTaskId);
+      const createdTaskId = await createTask(room, name, displayDate, displayTime, assignee, assigneeName, imageToSave);
+      await notifyTaskAssigned(name, assignee, createdTaskId);
       modal.classList.add('hidden');
     } catch (error) {
       if (isQuotaError(error) && imageToSave) {
@@ -477,8 +506,8 @@ function renderTasksPage(container) {
             imagePreview.style.display = 'block';
           }
           imageData = imageToSave;
-          const createdTaskId = createTask(room, name, displayDate, displayTime, assignee, assigneeName, imageToSave);
-          notifyTaskAssigned(name, assignee, createdTaskId);
+          const createdTaskId = await createTask(room, name, displayDate, displayTime, assignee, assigneeName, imageToSave);
+          await notifyTaskAssigned(name, assignee, createdTaskId);
           modal.classList.add('hidden');
           return;
         } catch (retryError) {
@@ -494,7 +523,8 @@ function renderTasksPage(container) {
         alert('Storage is almost full on this device. Try removing older images.');
         return;
       }
-      throw error;
+      console.error('Task creation failed:', error);
+      alert('Unable to create task right now. Please try again.');
     }
   });
 
@@ -508,14 +538,20 @@ function renderTasksPage(container) {
     if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
   });
 
-  renderTasks();
+  renderTasks().catch((error) => {
+    console.error('Initial task render failed:', error);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
-    const access = requireApartmentMembership();
-    if (!access || !access.apartmentCode) return;
-    renderTasksPage(container);
+    requireApartmentMembershipAsync().then((access) => {
+      if (!access || !access.apartmentCode) return;
+      return renderTasksPage(container, access);
+    }).catch((error) => {
+      console.error('Unable to render tasks page:', error);
+      alert('Unable to load tasks right now. Please refresh and try again.');
+    });
   }
 });

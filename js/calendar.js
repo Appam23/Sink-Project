@@ -1,26 +1,61 @@
-import { getApartmentItem, setApartmentItem } from './storage.js';
-import { requireApartmentMembership, getApartments, getUserApartmentCode } from './auth.js';
+import { requireApartmentMembershipAsync } from './auth.js';
 import { addNotificationForUser } from './notifications.js';
+import { initializeFirebaseServices } from './firebase.js';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+} from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
-function notifyRoommatesAboutNewEvent(eventName, actorUser) {
-  const apartments = getApartments();
-  const apartmentCode = getUserApartmentCode(actorUser, apartments);
-  if (!apartmentCode || !Array.isArray(apartments[apartmentCode])) return;
+async function notifyRoommatesAboutNewEvent(eventName, actorUser, apartmentCode, members = []) {
+  if (!apartmentCode || !Array.isArray(members)) return;
 
   const message = `${actorUser} added a new event: ${eventName}`;
-  apartments[apartmentCode].forEach((member) => {
+  const notificationWrites = members.map((member) => {
     if (member === actorUser) return;
-    addNotificationForUser(member, apartmentCode, {
+    return addNotificationForUser(member, apartmentCode, {
       type: 'event',
       message,
       link: 'calendar.html',
     });
   });
+  await Promise.all(notificationWrites.filter(Boolean));
 }
 
-function renderCalendarPage(container) {
+async function loadEvents(eventsCollectionRef) {
+  const eventsQuery = query(eventsCollectionRef, orderBy('createdAt', 'asc'));
+  const snapshot = await getDocs(eventsQuery);
+  return snapshot.docs.map((eventDoc) => {
+    const data = eventDoc.data() || {};
+    return {
+      id: eventDoc.id,
+      name: String(data.name || ''),
+      date: String(data.date || ''),
+      time: String(data.time || ''),
+      room: String(data.room || ''),
+    };
+  });
+}
+
+async function renderCalendarPage(container, apartmentCode, currentUser, apartmentMembers = []) {
   // Clear container
   container.innerHTML = '';
+
+  const { db, error: firebaseInitError } = initializeFirebaseServices();
+  const eventsCollectionRef = db && apartmentCode
+    ? collection(db, 'apartments', apartmentCode, 'events')
+    : null;
+
+  if (!eventsCollectionRef) {
+    console.error('Calendar requires Firebase Firestore and a valid apartment context.', firebaseInitError || null);
+    alert('Calendar is unavailable until Firebase is connected. Please refresh and sign in again.');
+    return;
+  }
 
   // Calendar page structure
   const page = document.createElement('div');
@@ -33,8 +68,7 @@ function renderCalendarPage(container) {
 
   container.appendChild(page);
 
-  // Load events scoped to the current apartment
-  const events = getApartmentItem('calendarEvents', []);
+  const events = await loadEvents(eventsCollectionRef);
 
   // Render events
   const eventsList = page.querySelector('#events-list');
@@ -43,7 +77,7 @@ function renderCalendarPage(container) {
       eventsList.innerHTML = '<div class="no-events">No events yet. Add one to get started!</div>';
     } else {
       eventsList.innerHTML = '';
-      events.forEach((event, index) => {
+      events.forEach((event) => {
         const eventRow = document.createElement('div');
         eventRow.className = 'event-row';
         eventRow.innerHTML = `
@@ -60,10 +94,14 @@ function renderCalendarPage(container) {
 
         const deleteBtn = eventRow.querySelector('.delete-event-btn');
         if (deleteBtn) {
-          deleteBtn.addEventListener('click', () => {
-            events.splice(index, 1);
-            setApartmentItem('calendarEvents', events);
-            renderCalendarPage(container);
+          deleteBtn.addEventListener('click', async () => {
+            try {
+              await deleteDoc(doc(eventsCollectionRef, event.id));
+              await renderCalendarPage(container, apartmentCode, currentUser);
+            } catch (error) {
+              console.error('Unable to delete event:', error);
+              alert('Unable to delete this event right now. Please try again.');
+            }
           });
         }
 
@@ -76,7 +114,9 @@ function renderCalendarPage(container) {
   const addBtn = page.querySelector('#add-event-btn');
   if (addBtn) {
     addBtn.addEventListener('click', () => {
-      showAddEventModal(container, events);
+      showAddEventModal(container, eventsCollectionRef, currentUser, async () => {
+        await renderCalendarPage(container, apartmentCode, currentUser, apartmentMembers);
+      }, apartmentCode, apartmentMembers);
     });
   }
 
@@ -89,13 +129,18 @@ function renderCalendarPage(container) {
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
-    const access = requireApartmentMembership();
-    if (!access || !access.apartmentCode) return;
-    renderCalendarPage(container);
+    requireApartmentMembershipAsync().then((access) => {
+      if (!access || !access.apartmentCode) return;
+      const apartmentMembers = access.apartment && Array.isArray(access.apartment.members) ? access.apartment.members : [];
+      return renderCalendarPage(container, access.apartmentCode, access.currentUser, apartmentMembers);
+    }).catch((error) => {
+      console.error('Unable to load calendar:', error);
+      alert('Unable to load calendar right now. Please refresh and try again.');
+    });
   }
 });
 
-function showAddEventModal(container, events) {
+function showAddEventModal(container, eventsCollectionRef, currentUser, onSaved, apartmentCode = null, apartmentMembers = []) {
   const modal = document.createElement('div');
   modal.className = 'event-modal';
   modal.innerHTML = `
@@ -156,7 +201,7 @@ function showAddEventModal(container, events) {
   // Handle form submission
   const form = modal.querySelector('#event-form');
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const name = document.getElementById('event-name').value.trim();
@@ -186,14 +231,22 @@ function showAddEventModal(container, events) {
         time: displayTime,
         room: finalRoom
       };
-      
-      events.push(newEvent);
-      setApartmentItem('calendarEvents', events);
-      const currentUser = localStorage.getItem('currentUser') || 'You';
-      notifyRoommatesAboutNewEvent(newEvent.name, currentUser);
-      
-      modal.remove();
-      renderCalendarPage(container);
+
+      try {
+        await addDoc(eventsCollectionRef, {
+          ...newEvent,
+          createdBy: currentUser,
+          createdAt: serverTimestamp(),
+        });
+        await notifyRoommatesAboutNewEvent(newEvent.name, currentUser, apartmentCode, apartmentMembers);
+        modal.remove();
+        if (typeof onSaved === 'function') {
+          await onSaved();
+        }
+      } catch (error) {
+        console.error('Unable to add event:', error);
+        alert('Unable to add event right now. Please try again.');
+      }
     });
   }
 

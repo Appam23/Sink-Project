@@ -1,5 +1,14 @@
-import { getApartmentItem, setApartmentItem } from './storage.js';
-import { requireApartmentMembership } from './auth.js';
+import { requireApartmentMembershipAsync } from './auth.js';
+import { initializeFirebaseServices } from './firebase.js';
+import { getApartmentProfilesMap } from './profiles.js';
+import {
+  addDoc,
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+} from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
 
@@ -13,11 +22,6 @@ const EMERGENCY_MIN_IMAGE_DIMENSION = 320;
 const EMERGENCY_IMAGE_QUALITY = 0.34;
 const EMERGENCY_MIN_IMAGE_QUALITY = 0.25;
 const EMERGENCY_TARGET_IMAGE_DATA_URL_LENGTH = 120000;
-
-function isQuotaError(error) {
-  if (!error) return false;
-  return error.name === 'QuotaExceededError' || error.code === 22 || error.code === 1014;
-}
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -101,9 +105,26 @@ function aggressiveCompressImageDataUrl(dataUrl) {
   });
 }
 
-function renderGroupChatPage(container, userName = 'You') {
+function isFirestoreMessageSizeError(error) {
+  if (!error) return false;
+  const code = String(error.code || '');
+  return code === 'invalid-argument' || code === 'resource-exhausted';
+}
+
+async function renderGroupChatPage(container, userName = 'You', apartmentCode = null) {
   // Clear container
   container.innerHTML = '';
+
+  const { db, error: firebaseInitError } = initializeFirebaseServices();
+  const messagesCollectionRef = db && apartmentCode
+    ? collection(db, 'apartments', apartmentCode, 'chatMessages')
+    : null;
+
+  if (!messagesCollectionRef) {
+    console.error('Group chat requires Firebase Firestore and a valid apartment context.', firebaseInitError || null);
+    alert('Group chat is unavailable until Firebase is connected. Please refresh and sign in again.');
+    return;
+  }
 
   // Group chat page structure
   const page = document.createElement('div');
@@ -146,11 +167,27 @@ function renderGroupChatPage(container, userName = 'You') {
   let pendingAttachmentType = '';
   let pendingAttachmentName = '';
 
-  const profilesRaw = localStorage.getItem('profiles');
-  const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
+  const profiles = apartmentCode ? await getApartmentProfilesMap(apartmentCode) : {};
   const userProfile = profiles[userName] || {};
 
-  const messages = getApartmentItem('groupChatMessages', []);
+  let messages = [];
+
+  async function loadMessages() {
+    const messageQuery = query(messagesCollectionRef, orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(messageQuery);
+    messages = snapshot.docs.map((messageDoc) => {
+      const data = messageDoc.data() || {};
+      return {
+        id: messageDoc.id,
+        sender: String(data.sender || ''),
+        text: String(data.text || ''),
+        attachmentData: data.attachmentData || null,
+        attachmentUrl: data.attachmentUrl || null,
+        attachmentType: String(data.attachmentType || ''),
+        attachmentName: String(data.attachmentName || ''),
+      };
+    });
+  }
 
   function renderMessages() {
     chatBox.innerHTML = '';
@@ -159,7 +196,7 @@ function renderGroupChatPage(container, userName = 'You') {
         ? userProfile.picture || DEFAULT_PROFILE_PICTURE
         : profiles[msg.sender]?.picture || DEFAULT_PROFILE_PICTURE;
 
-      const attachmentData = msg.attachmentData || msg.file || null;
+      const attachmentData = msg.attachmentUrl || msg.attachmentData || msg.file || null;
       const attachmentType = msg.attachmentType || '';
       const attachmentName = msg.attachmentName || 'Attached File';
       const isImageAttachment = Boolean(attachmentData) && attachmentType.startsWith('image/');
@@ -184,6 +221,7 @@ function renderGroupChatPage(container, userName = 'You') {
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
+  await loadMessages();
   renderMessages();
 
   function setUploadState(isBusy, message = '') {
@@ -264,54 +302,30 @@ function renderGroupChatPage(container, userName = 'You') {
     const attachmentName = pendingAttachmentName;
 
     if (text || attachmentData) {
-      messages.push({
-        sender: userName,
-        text,
-        attachmentData,
-        attachmentType,
-        attachmentName,
-      });
       try {
         setUploadState(true, 'Saving message...');
-        setApartmentItem('groupChatMessages', messages);
+        await addDoc(messagesCollectionRef, {
+          sender: userName,
+          text,
+          attachmentData,
+          attachmentType,
+          attachmentName,
+          createdAt: serverTimestamp(),
+        });
       } catch (error) {
-        messages.pop();
-        if (isQuotaError(error)) {
-          const isImageAttachment = attachmentData && attachmentType && attachmentType.startsWith('image/');
-          if (isImageAttachment) {
-            setUploadState(true, 'Reducing image size...');
-            const reducedAttachmentData = await aggressiveCompressImageDataUrl(attachmentData);
-            messages.push({
-              sender: userName,
-              text,
-              attachmentData: reducedAttachmentData,
-              attachmentType,
-              attachmentName,
-            });
-            try {
-              setUploadState(true, 'Saving message...');
-              setApartmentItem('groupChatMessages', messages);
-              pendingAttachmentData = reducedAttachmentData;
-            } catch (retryError) {
-              messages.pop();
-              setUploadState(false, '');
-              if (isQuotaError(retryError)) {
-                alert('Storage is almost full on this device. Try removing older image messages or choose a smaller image.');
-                return;
-              }
-              throw retryError;
-            }
-          } else {
-            setUploadState(false, '');
-            alert('Storage is almost full on this device. Try removing older image messages.');
-            return;
-          }
-        } else {
+        if (isFirestoreMessageSizeError(error)) {
           setUploadState(false, '');
-          throw error;
+          alert('Message payload is too large. Please shorten the message or use a smaller attachment.');
+          return;
         }
+
+        setUploadState(false, '');
+        console.error('Message save failed:', error);
+        alert('Unable to send message right now. Please try again.');
+        return;
       }
       setUploadState(false, '');
+      await loadMessages();
       renderMessages();
       messageInput.value = '';
       clearPendingAttachment(true);
@@ -333,9 +347,13 @@ function renderGroupChatPage(container, userName = 'You') {
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
-    const access = requireApartmentMembership();
-    if (!access || !access.apartmentCode) return;
-    const userName = access.currentUser;
-    renderGroupChatPage(container, userName);
+    requireApartmentMembershipAsync().then((access) => {
+      if (!access || !access.apartmentCode) return;
+      const userName = access.currentUser;
+      return renderGroupChatPage(container, userName, access.apartmentCode);
+    }).catch((error) => {
+      console.error('Unable to load group chat:', error);
+      alert('Unable to load group chat right now. Please refresh and try again.');
+    });
   }
 });
