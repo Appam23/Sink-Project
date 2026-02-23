@@ -737,7 +737,7 @@ button:hover, .main-btn:hover {
 .message {
     text-align: center;
     margin-top: 12px;
-    color: green;
+    color: red;
 }
 
 /* Apartment code page styles */
