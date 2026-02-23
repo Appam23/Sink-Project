@@ -1,4 +1,12 @@
-import { createUser } from './credentials.js';
+import { createFirebaseEmailUser } from './firebase.js';
+
+function mapSignupError(error) {
+  const code = error && error.code ? String(error.code) : '';
+  if (code === 'auth/email-already-in-use') return 'An account with this email already exists.';
+  if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
+  if (code === 'auth/weak-password') return 'Password should be at least 6 characters.';
+  return error && error.message ? error.message : 'Unable to create account.';
+}
 
 export function renderSignupForm(container, renderWelcomePageWithEvents, renderLoginForm) {
   while (container.firstChild) {
@@ -35,12 +43,10 @@ export function renderSignupForm(container, renderWelcomePageWithEvents, renderL
     }
 
     try {
-      await createUser(email, password, name);
-      localStorage.setItem('currentUser', email.toLowerCase());
-      localStorage.setItem('currentUserEmail', email.toLowerCase());
+      await createFirebaseEmailUser(email, password, name);
       window.location.href = 'apartment_code.html';
     } catch (error) {
-      message.innerText = error && error.message ? error.message : 'Unable to create account.';
+      message.innerText = mapSignupError(error);
     }
   };
 }

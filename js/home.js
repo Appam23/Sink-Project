@@ -1,175 +1,41 @@
-import { renderProfilePage } from './profile.js';
-import { requireApartmentMembership } from './auth.js';
+import { requireApartmentMembershipAsync } from './auth.js';
 import { clearUserNotifications, getUserNotifications, markAllNotificationsRead } from './notifications.js';
+import { deleteUserProfile, getApartmentProfilesMap } from './profiles.js';
+import { signOutFirebaseUser } from './firebase.js';
+import {
+  deleteApartmentByOwner,
+  getApartmentByCode,
+  leaveApartment,
+  removeUserFromAllApartments,
+} from './apartments.js';
 
 const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
 
-function parseJsonStorage(key, fallback) {
-  const raw = localStorage.getItem(key);
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
+async function deleteUserAccountData(userName, apartmentCode = null) {
+  await removeUserFromAllApartments(userName);
 
-function getApartments() {
-  return parseJsonStorage('apartments', {});
-}
-
-function saveApartments(apartments) {
-  localStorage.setItem('apartments', JSON.stringify(apartments));
-}
-
-function getApartmentOwners() {
-  return parseJsonStorage('apartmentOwners', {});
-}
-
-function saveApartmentOwners(owners) {
-  localStorage.setItem('apartmentOwners', JSON.stringify(owners));
-}
-
-function getApartmentOwner(code, apartments, owners) {
-  if (!code) return null;
-  const explicitOwner = owners[code];
-  if (explicitOwner) return explicitOwner;
-  const members = apartments[code] || [];
-  return members[0] || null;
-}
-
-function getApartmentCodeForUser(userName, apartments) {
-  const currentApartment = localStorage.getItem('currentApartment');
-  if (currentApartment && Array.isArray(apartments[currentApartment]) && apartments[currentApartment].includes(userName)) {
-    return currentApartment;
-  }
-
-  for (const code of Object.keys(apartments)) {
-    const members = apartments[code] || [];
-    if (members.includes(userName)) return code;
-  }
-
-  return null;
-}
-
-function removeApartmentScopedData(apartmentCode) {
-  if (!apartmentCode) return;
-  const suffix = `_${apartmentCode}`;
-  for (let i = localStorage.length - 1; i >= 0; i -= 1) {
-    const key = localStorage.key(i);
-    if (key && key.endsWith(suffix)) {
-      localStorage.removeItem(key);
+  if (apartmentCode) {
+    try {
+      await deleteUserProfile(apartmentCode, userName);
+    } catch (error) {
+      console.warn('Unable to delete Firestore profile during account cleanup:', error);
     }
   }
 }
 
-function scrubUserFromApartmentData(apartmentCode, userName) {
-  if (!apartmentCode || !userName) return;
-
-  const messageKey = `groupChatMessages_${apartmentCode}`;
-  const messages = parseJsonStorage(messageKey, []);
-  if (Array.isArray(messages)) {
-    const filteredMessages = messages.filter((msg) => msg && msg.sender !== userName);
-    if (filteredMessages.length > 0) {
-      localStorage.setItem(messageKey, JSON.stringify(filteredMessages));
-    } else {
-      localStorage.removeItem(messageKey);
-    }
-  }
-
-  const tasksKey = `tasks_${apartmentCode}`;
-  const tasks = parseJsonStorage(tasksKey, []);
-  if (Array.isArray(tasks)) {
-    const filteredTasks = tasks.filter((task) => task && task.assignee !== userName);
-    if (filteredTasks.length > 0) {
-      localStorage.setItem(tasksKey, JSON.stringify(filteredTasks));
-    } else {
-      localStorage.removeItem(tasksKey);
-    }
-  }
-}
-
-function removeUserFromApartment(apartmentCode, userName, apartments, owners) {
-  const members = apartments[apartmentCode] || [];
-  const filteredMembers = members.filter((member) => member !== userName);
-
-  if (filteredMembers.length === 0) {
-    delete apartments[apartmentCode];
-    delete owners[apartmentCode];
-    removeApartmentScopedData(apartmentCode);
-    return;
-  }
-
-  apartments[apartmentCode] = filteredMembers;
-  const currentOwner = getApartmentOwner(apartmentCode, apartments, owners);
-  if (currentOwner === userName || !currentOwner) {
-    owners[apartmentCode] = filteredMembers[0];
-  }
-}
-
-function deleteUserAccountData(userName) {
-  const apartments = getApartments();
-  const owners = getApartmentOwners();
-
-  Object.keys(apartments).forEach((apartmentCode) => {
-    const members = apartments[apartmentCode] || [];
-    if (!members.includes(userName)) {
-      scrubUserFromApartmentData(apartmentCode, userName);
-      return;
-    }
-
-    removeUserFromApartment(apartmentCode, userName, apartments, owners);
-    if (apartments[apartmentCode]) {
-      scrubUserFromApartmentData(apartmentCode, userName);
-    }
-  });
-
-  const profiles = parseJsonStorage('profiles', {});
-  if (profiles[userName]) {
-    delete profiles[userName];
-    localStorage.setItem('profiles', JSON.stringify(profiles));
-  }
-
-  saveApartments(apartments);
-  saveApartmentOwners(owners);
-}
-
-function renderHomePage(container, userName = 'You', apartmentCode = null) {
+async function renderHomePage(container, userName = 'You', apartmentCode = null, apartmentData = null) {
   // Clear container
   container.innerHTML = '';
 
-  // Determine apartment code and members from localStorage
-  const apartments = getApartments();
-  const owners = getApartmentOwners();
-
-  let code = apartmentCode;
-  let members = [];
-
-  if (!code) {
-    // Try to find an apartment that contains this user
-    for (const k of Object.keys(apartments)) {
-      const arr = apartments[k] || [];
-      if (arr.includes(userName)) {
-        code = k;
-        members = arr;
-        break;
-      }
-    }
-  } else {
-    members = apartments[code] || [];
-  }
+  const code = apartmentCode;
+  let members = Array.isArray(apartmentData && apartmentData.members) ? [...apartmentData.members] : [];
 
   // Exclude the current user from the roommates list
-  const currentUser = localStorage.getItem('currentUser') || userName;
-  const apartmentOwner = getApartmentOwner(code, apartments, owners);
+  const currentUser = userName;
+  const apartmentOwner = apartmentData && apartmentData.owner ? apartmentData.owner : null;
   const apartmentMemberCount = Array.isArray(members) ? members.length : 0;
   const canLeaveApartment = apartmentMemberCount > 1;
   const canDeleteApartment = !!code && apartmentOwner === currentUser;
-
-  if (code && apartmentOwner && !owners[code]) {
-    owners[code] = apartmentOwner;
-    saveApartmentOwners(owners);
-  }
 
   if (members && Array.isArray(members)) {
     members = members.filter((m) => m !== currentUser);
@@ -239,8 +105,7 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   }).catch(err => console.error('Failed to load footer module in home.js:', err));
 
   // Load current user's profile picture if available
-  const profilesRaw = localStorage.getItem('profiles');
-  const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
+  const profiles = code ? await getApartmentProfilesMap(code) : {};
   const myProfile = profiles[currentUser] || {};
 
   const formatName = (value) => {
@@ -341,9 +206,12 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   // Logout button
   const logoutBtn = page.querySelector('#logout-btn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('currentApartment');
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await signOutFirebaseUser();
+      } catch (error) {
+        console.error('Failed to sign out:', error);
+      }
       window.location.href = 'index.html';
     });
   }
@@ -359,7 +227,7 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   const notificationsCount = page.querySelector('#notifications-count');
   const clearNotificationsBtn = page.querySelector('#clear-notifications-btn');
 
-  let notifications = getUserNotifications(currentUser, code);
+  let notifications = [];
 
   function renderNotifications() {
     if (!notificationsList || !notificationsCount) return;
@@ -391,6 +259,12 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
     });
   }
 
+  try {
+    notifications = await getUserNotifications(currentUser, code);
+  } catch (error) {
+    console.error('Unable to load notifications:', error);
+    notifications = [];
+  }
   renderNotifications();
 
   if (settingsBtn && settingsPopup) {
@@ -411,9 +285,9 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   }
 
   if (notificationsBtn && notificationsPopup) {
-    notificationsBtn.addEventListener('click', (event) => {
+    notificationsBtn.addEventListener('click', async (event) => {
       event.stopPropagation();
-      notifications = markAllNotificationsRead(currentUser, code);
+      notifications = await markAllNotificationsRead(currentUser, code);
       renderNotifications();
       notificationsPopup.classList.toggle('hidden');
       if (settingsPopup) settingsPopup.classList.add('hidden');
@@ -425,15 +299,15 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
   }
 
   if (clearNotificationsBtn) {
-    clearNotificationsBtn.addEventListener('click', () => {
-      clearUserNotifications(currentUser, code);
+    clearNotificationsBtn.addEventListener('click', async () => {
+      await clearUserNotifications(currentUser, code);
       notifications = [];
       renderNotifications();
     });
   }
 
   if (leaveApartmentBtn) {
-    leaveApartmentBtn.addEventListener('click', () => {
+    leaveApartmentBtn.addEventListener('click', async () => {
       if (!code) {
         alert('You are not currently in an apartment.');
         return;
@@ -447,36 +321,24 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
       const shouldLeave = window.confirm('Leave this apartment? You can join another apartment later with a code.');
       if (!shouldLeave) return;
 
-      const apartmentsState = getApartments();
-      const ownersState = getApartmentOwners();
-      const userApartmentCode = getApartmentCodeForUser(currentUser, apartmentsState);
-      if (!userApartmentCode || !apartmentsState[userApartmentCode]) {
-        localStorage.removeItem('currentApartment');
+      try {
+        await leaveApartment(code, currentUser);
         window.location.href = 'apartment_code.html';
-        return;
+      } catch (error) {
+        console.error('Failed to leave apartment:', error);
+        alert('Unable to leave apartment right now. Please try again.');
       }
-
-      removeUserFromApartment(userApartmentCode, currentUser, apartmentsState, ownersState);
-      saveApartments(apartmentsState);
-      saveApartmentOwners(ownersState);
-      localStorage.removeItem('currentApartment');
-      window.location.href = 'apartment_code.html';
     });
   }
 
   if (deleteApartmentBtn) {
-    deleteApartmentBtn.addEventListener('click', () => {
-      const apartmentsState = getApartments();
-      const ownersState = getApartmentOwners();
-      const userApartmentCode = getApartmentCodeForUser(currentUser, apartmentsState);
-      const owner = getApartmentOwner(userApartmentCode, apartmentsState, ownersState);
-
-      if (!userApartmentCode || !apartmentsState[userApartmentCode]) {
+    deleteApartmentBtn.addEventListener('click', async () => {
+      if (!code) {
         alert('No apartment found to delete.');
         return;
       }
 
-      if (owner !== currentUser) {
+      if (apartmentOwner !== currentUser) {
         alert('Only the apartment creator can delete this apartment.');
         return;
       }
@@ -484,36 +346,43 @@ function renderHomePage(container, userName = 'You', apartmentCode = null) {
       const shouldDelete = window.confirm('Delete this apartment for everyone? This removes all apartment data and cannot be undone.');
       if (!shouldDelete) return;
 
-      delete apartmentsState[userApartmentCode];
-      delete ownersState[userApartmentCode];
-      removeApartmentScopedData(userApartmentCode);
-      saveApartments(apartmentsState);
-      saveApartmentOwners(ownersState);
-      localStorage.removeItem('currentApartment');
-      window.location.href = 'apartment_code.html';
+      try {
+        await deleteApartmentByOwner(code, currentUser);
+        window.location.href = 'apartment_code.html';
+      } catch (error) {
+        console.error('Failed to delete apartment:', error);
+        alert(error && error.message ? error.message : 'Unable to delete apartment right now.');
+      }
     });
   }
 
   if (deleteAccountBtn) {
-    deleteAccountBtn.addEventListener('click', () => {
+    deleteAccountBtn.addEventListener('click', async () => {
       const shouldDelete = window.confirm('Delete your account permanently? This will remove your profile and apartment membership data.');
       if (!shouldDelete) return;
 
-      deleteUserAccountData(currentUser);
-      localStorage.removeItem('currentApartment');
-      localStorage.removeItem('currentUser');
+      await deleteUserAccountData(currentUser, code);
+      try {
+        await signOutFirebaseUser();
+      } catch (error) {
+        console.error('Failed to sign out after account data cleanup:', error);
+      }
       window.location.href = 'index.html';
     });
   }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   const container = document.getElementById('app-container');
   if (container) {
-    const access = requireApartmentMembership();
+    const access = await requireApartmentMembershipAsync();
     if (!access || !access.apartmentCode) return;
     const userName = access.currentUser;
     const apartmentCode = access.apartmentCode;
-    renderHomePage(container, userName, apartmentCode);
+    const apartmentData = await getApartmentByCode(apartmentCode);
+    renderHomePage(container, userName, apartmentCode, apartmentData).catch((error) => {
+      console.error('Unable to render home page:', error);
+      alert('Unable to load home page right now. Please refresh and try again.');
+    });
   }
 });

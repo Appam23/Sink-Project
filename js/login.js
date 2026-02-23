@@ -1,5 +1,14 @@
-import { getUserByEmail, verifyUserCredentials } from './credentials.js';
-import { migrateUserIdentity } from './identity.js';
+import { signInFirebaseEmailUser } from './firebase.js';
+import { ensureMemberInApartment, findApartmentForUser } from './apartments.js';
+
+function mapLoginError(error) {
+  const code = error && error.code ? String(error.code) : '';
+  if (code === 'auth/user-not-found') return 'No account found for this email. Please sign up first.';
+  if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') return 'Incorrect password.';
+  if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
+  if (code === 'auth/too-many-requests') return 'Too many login attempts. Please try again later.';
+  return error && error.message ? error.message : 'Unable to log in right now.';
+}
 
 export function renderLoginForm(container, renderWelcomePageWithEvents, renderSignupForm) {
   while (container.firstChild) {
@@ -47,34 +56,24 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
       }
       // No strict password check, allow any password
 
-      const normalizedEmail = email.toLowerCase();
-      const currentUserName = (user.displayName || '').trim() || normalizedEmail;
-      migrateUserIdentity(currentUserName, normalizedEmail);
-      localStorage.setItem('currentUser', normalizedEmail);
-      localStorage.setItem('currentUserEmail', normalizedEmail);
-
-      const apartments = JSON.parse(localStorage.getItem('apartments') || '{}');
-      let hasApartment = false;
-      let apartmentsUpdated = false;
-      for (const code of Object.keys(apartments)) {
-        const members = Array.isArray(apartments[code]) ? apartments[code] : [];
-        const matchesName = members.includes(currentUserName);
-        const matchesEmail = members.includes(normalizedEmail);
-        if (matchesName || matchesEmail) {
-          hasApartment = true;
-          if (matchesName && !matchesEmail) {
-            members.push(normalizedEmail);
-            apartments[code] = members;
-            apartmentsUpdated = true;
+      let membership = null;
+      try {
+        membership = await findApartmentForUser(normalizedEmail);
+        if (!membership && currentUserName && currentUserName !== normalizedEmail) {
+          membership = await findApartmentForUser(currentUserName);
+          if (membership && membership.code) {
+            try {
+              membership = await ensureMemberInApartment(membership.code, normalizedEmail);
+            } catch (_error) {
+              // Keep existing membership context if alias update fails.
+            }
           }
-          localStorage.setItem('currentApartment', code);
-          break;
         }
+      } catch (_error) {
+        membership = null;
       }
 
-      if (apartmentsUpdated) {
-        localStorage.setItem('apartments', JSON.stringify(apartments));
-      }
+      const hasApartment = !!(membership && membership.code);
 
       if (hasApartment) {
         window.location.href = 'home.html';

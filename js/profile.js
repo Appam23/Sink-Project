@@ -1,9 +1,9 @@
-import { requireApartmentMembership } from './auth.js';
-import { updateUserDisplayName } from './credentials.js';
+import { requireApartmentMembershipAsync } from './auth.js';
+import { getUserProfile, saveUserProfile } from './profiles.js';
 
 const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
 
-export function renderProfilePage(container, userName = 'You') {
+export async function renderProfilePage(container, userName = 'You', apartmentCode = null) {
   // Clear container
   container.innerHTML = '';
 
@@ -48,10 +48,15 @@ export function renderProfilePage(container, userName = 'You') {
   }
 
   // Prefill from stored profiles if available
-  const currentUserKey = localStorage.getItem('currentUser') || userName;
-  const profilesRaw = localStorage.getItem('profiles');
-  const profiles = profilesRaw ? JSON.parse(profilesRaw) : {};
-  const existing = profiles[currentUserKey] || {};
+  const currentUserKey = userName;
+  let existing = {};
+  if (apartmentCode && currentUserKey) {
+    try {
+      existing = await getUserProfile(apartmentCode, currentUserKey) || {};
+    } catch (error) {
+      console.error('Unable to load profile:', error);
+    }
+  }
   if (existing) {
     const first = existing.firstName || '';
     const last = existing.lastName || '';
@@ -87,7 +92,7 @@ export function renderProfilePage(container, userName = 'You') {
     profileForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const firstNameInput = document.getElementById('first-name').value.trim();
-      const currentUser = localStorage.getItem('currentUser') || userName;
+      const currentUser = userName;
 
       const profileData = {
         firstName: firstNameInput,
@@ -99,15 +104,12 @@ export function renderProfilePage(container, userName = 'You') {
         bio: document.getElementById('Bio').value.trim(),
         picture: picPreview ? picPreview.src : ''
       };
-      const profilesRaw2 = localStorage.getItem('profiles');
-      const profiles2 = profilesRaw2 ? JSON.parse(profilesRaw2) : {};
-      profiles2[currentUser] = profileData;
-      localStorage.setItem('profiles', JSON.stringify(profiles2));
-
-      const currentUserEmail = localStorage.getItem('currentUserEmail') || currentUser;
-      if (currentUserEmail && firstNameInput) {
-        updateUserDisplayName(currentUserEmail, firstNameInput);
+      if (!apartmentCode) {
+        alert('No apartment context found for this profile. Please rejoin your apartment and try again.');
+        return;
       }
+
+      await saveUserProfile(apartmentCode, currentUser, profileData);
 
       window.location.href = 'home.html';
     });
@@ -147,9 +149,13 @@ export function renderProfilePage(container, userName = 'You') {
 document.addEventListener('DOMContentLoaded', function() {
   const container = document.getElementById('app-container');
   if (container) {
-    const access = requireApartmentMembership();
-    if (!access || !access.apartmentCode) return;
-    const userName = access.currentUser;
-    renderProfilePage(container, userName);
+    requireApartmentMembershipAsync().then((access) => {
+      if (!access || !access.apartmentCode) return;
+      const userName = access.currentUser;
+      return renderProfilePage(container, userName, access.apartmentCode);
+    }).catch((error) => {
+      console.error('Unable to render profile page:', error);
+      alert('Unable to open profile right now. Please refresh and try again.');
+    });
   }
 });

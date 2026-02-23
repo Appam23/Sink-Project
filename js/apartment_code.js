@@ -1,4 +1,5 @@
-import { requireApartmentMembership, getUserApartmentCode } from './auth.js';
+import { requireApartmentMembershipAsync } from './auth.js';
+import { createApartment, findApartmentForUser, joinApartment } from './apartments.js';
 
 const MAX_ROOMMATES = 12;
 
@@ -51,14 +52,17 @@ function setupBackButton(page, userName) {
 	const backBtn = page.querySelector('#back-btn');
 	if (!backBtn) return;
 
-	backBtn.addEventListener('click', () => {
-		const apartments = getApartments();
-		const apartmentCode = getUserApartmentCode(userName, apartments);
-		if (!apartmentCode) {
+	backBtn.addEventListener('click', async () => {
+		try {
+			const apartment = await findApartmentForUser(userName);
+			if (!apartment || !apartment.code) {
+				window.location.href = 'index.html';
+				return;
+			}
+			window.history.back();
+		} catch (_error) {
 			window.location.href = 'index.html';
-			return;
 		}
-		window.history.back();
 	});
 }
 
@@ -99,7 +103,7 @@ function setupJoinCodeSection(page, container, userName) {
 
 	if (!joinBtn || !joinInput || !joinMessage) return;
 
-	joinBtn.addEventListener('click', () => {
+	joinBtn.addEventListener('click', async () => {
 		const code = joinInput.value.trim().toUpperCase();
 
 		if (!code) {
@@ -107,27 +111,22 @@ function setupJoinCodeSection(page, container, userName) {
 			return;
 		}
 
-		const apartments = getApartments();
-		if (!apartments[code]) {
-			joinMessage.textContent = 'Apartment code not found.';
-			return;
+		try {
+			await joinApartment(code, userName, MAX_ROOMMATES);
+			joinMessage.textContent = `Joining apartment with code: ${code}`;
+			window.location.href = 'home.html';
+		} catch (error) {
+			const message = String(error && error.message || '').toLowerCase();
+			if (message.includes('not found')) {
+				joinMessage.textContent = 'Apartment code not found.';
+				return;
+			}
+			if (message.includes('full')) {
+				joinMessage.textContent = 'Sorry! This apartment is full!';
+				return;
+			}
+			joinMessage.textContent = 'Unable to join this apartment right now. Please try again.';
 		}
-
-		const isAlreadyMember = apartments[code].includes(userName);
-		if (!isAlreadyMember && apartments[code].length >= MAX_ROOMMATES) {
-			joinMessage.textContent = 'Sorry! This apartment is full!';
-			return;
-		}
-
-		if (!isAlreadyMember) {
-			apartments[code].push(userName);
-		}
-		localStorage.setItem('apartments', JSON.stringify(apartments));
-		localStorage.setItem('currentApartment', code);
-		localStorage.setItem('currentUser', userName);
-
-		joinMessage.textContent = `Joining apartment with code: ${code}`;
-		window.location.href = 'home.html';
 	});
 }
 
@@ -139,38 +138,23 @@ function generateApartmentCode() {
 	return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-function saveNewApartment(code, userName) {
-	const apartments = getApartments();
-	const apartmentOwnersRaw = localStorage.getItem('apartmentOwners');
-	const apartmentOwners = apartmentOwnersRaw ? JSON.parse(apartmentOwnersRaw) : {};
-	apartments[code] = apartments[code] || [];
-	if (!apartments[code].includes(userName)) {
-		apartments[code].push(userName);
-	}
-	apartmentOwners[code] = userName;
-	localStorage.setItem('apartments', JSON.stringify(apartments));
-	localStorage.setItem('apartmentOwners', JSON.stringify(apartmentOwners));
-	localStorage.setItem('currentApartment', code);
-	localStorage.setItem('currentUser', userName);
-}
-
-function getApartments() {
-	const apartmentsRaw = localStorage.getItem('apartments');
-	return apartmentsRaw ? JSON.parse(apartmentsRaw) : {};
-}
-
 function extractCodeFromMessage(message) {
 	const match = message.match(/([A-Z0-9]{6})/);
-	return match ? match[1] : localStorage.getItem('currentApartment');
+	return match ? match[1] : null;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
 	const container = document.getElementById('app-container');
 	if (container) {
-		const access = requireApartmentMembership({ redirectIfHasApartment: 'home.html' });
-		if (!access) return;
-		if (access.apartmentCode) return;
-		const userName = access.currentUser;
-		renderApartmentCodePage(container, userName);
+		try {
+			const access = await requireApartmentMembershipAsync({ redirectIfHasApartment: 'home.html' });
+			if (!access) return;
+			if (access.apartmentCode) return;
+			const userName = access.currentUser;
+			renderApartmentCodePage(container, userName);
+		} catch (error) {
+			console.error('Unable to load apartment page:', error);
+			container.innerHTML = '<div class="message">Unable to load apartment setup right now. Please refresh and try again.</div>';
+		}
 	}
 });

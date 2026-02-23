@@ -1,0 +1,88 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserId() {
+      return isSignedIn() && request.auth.token.email != null
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    function apartmentDoc(apartmentCode) {
+      return get(/databases/$(database)/documents/apartments/$(apartmentCode)).data;
+    }
+
+    function apartmentExists(apartmentCode) {
+      return exists(/databases/$(database)/documents/apartments/$(apartmentCode));
+    }
+
+    function isApartmentMember(apartmentCode) {
+      return isSignedIn()
+        && apartmentExists(apartmentCode)
+        && apartmentDoc(apartmentCode).members is list
+        && apartmentDoc(apartmentCode).members.hasAny([currentUserId()]);
+    }
+
+    function isApartmentOwner(apartmentCode) {
+      return isApartmentMember(apartmentCode)
+        && apartmentDoc(apartmentCode).owner == currentUserId();
+    }
+
+    function isCreatingOwnApartment(apartmentCode) {
+      return isSignedIn()
+        && request.resource.data.code == apartmentCode
+        && request.resource.data.owner == currentUserId()
+        && request.resource.data.members is list
+        && request.resource.data.members.size() == 1
+        && request.resource.data.members.hasOnly([currentUserId()]);
+    }
+
+    function isJoiningApartmentAsSelf(apartmentCode) {
+      return isSignedIn()
+        && apartmentExists(apartmentCode)
+        && apartmentDoc(apartmentCode).members is list
+        && !apartmentDoc(apartmentCode).members.hasAny([currentUserId()])
+        && request.resource.data.members is list
+        && request.resource.data.members.hasAll(apartmentDoc(apartmentCode).members)
+        && request.resource.data.members.size() == apartmentDoc(apartmentCode).members.size() + 1
+        && request.resource.data.members.hasAny([currentUserId()])
+        && request.resource.data.owner == apartmentDoc(apartmentCode).owner
+        && request.resource.data.code == apartmentDoc(apartmentCode).code;
+    }
+
+    match /apartments/{apartmentCode} {
+      allow read: if isSignedIn();
+      allow create: if isCreatingOwnApartment(apartmentCode);
+      allow update: if isApartmentMember(apartmentCode) || isJoiningApartmentAsSelf(apartmentCode);
+      allow delete: if isApartmentOwner(apartmentCode);
+    }
+
+    match /apartments/{apartmentCode}/profiles/{userId} {
+      allow read, write: if isApartmentMember(apartmentCode);
+    }
+
+    match /apartments/{apartmentCode}/notifications/{notificationId} {
+      allow read, write: if isApartmentMember(apartmentCode);
+    }
+
+    match /apartments/{apartmentCode}/chatMessages/{messageId} {
+      allow read, write: if isApartmentMember(apartmentCode);
+    }
+
+    match /apartments/{apartmentCode}/events/{eventId} {
+      allow read, write: if isApartmentMember(apartmentCode);
+    }
+
+    match /apartments/{apartmentCode}/tasks/{taskId} {
+      allow read, write: if isApartmentMember(apartmentCode);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
