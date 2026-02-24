@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signOut,
   signInWithEmailAndPassword,
   updateProfile,
@@ -10,7 +11,7 @@ import {
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyDpKnvy8BYh7KxaDgA5-E3zYLy3One_tAg',
+  apiKey: 'AIzaSyCpmk_QVCm7qH5wKFN3yvjQe2xZhEC2vMA',
   authDomain: 'bunk-buddies-dev.firebaseapp.com',
   projectId: 'bunk-buddies-dev',
   storageBucket: 'bunk-buddies-dev.firebasestorage.app',
@@ -89,6 +90,11 @@ export async function signInFirebaseEmailUser(email, password) {
   const auth = getInitializedAuth();
   const credentials = await signInWithEmailAndPassword(auth, email, password);
   return credentials.user;
+}
+
+export async function sendFirebasePasswordReset(email) {
+  const auth = getInitializedAuth();
+  await sendPasswordResetEmail(auth, String(email || '').trim());
 }
 
 function getUserIdentifierFromAuthUser(user) {

@@ -287,10 +287,15 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   if (notificationsBtn && notificationsPopup) {
     notificationsBtn.addEventListener('click', async (event) => {
       event.stopPropagation();
-      notifications = await markAllNotificationsRead(currentUser, code);
-      renderNotifications();
       notificationsPopup.classList.toggle('hidden');
       if (settingsPopup) settingsPopup.classList.add('hidden');
+
+      try {
+        notifications = await markAllNotificationsRead(currentUser, code);
+        renderNotifications();
+      } catch (error) {
+        console.error('Unable to mark notifications as read:', error);
+      }
     });
 
     notificationsPopup.addEventListener('click', (event) => {

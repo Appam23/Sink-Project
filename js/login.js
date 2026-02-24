@@ -1,4 +1,4 @@
-import { signInFirebaseEmailUser } from './firebase.js';
+import { sendFirebasePasswordReset, signInFirebaseEmailUser } from './firebase.js';
 import { ensureMemberInApartment, findApartmentForUser } from './apartments.js';
 
 function mapLoginError(error) {
@@ -8,6 +8,14 @@ function mapLoginError(error) {
   if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
   if (code === 'auth/too-many-requests') return 'Too many login attempts. Please try again later.';
   return error && error.message ? error.message : 'Unable to log in right now.';
+}
+
+function mapPasswordResetError(error) {
+  const code = error && error.code ? String(error.code) : '';
+  if (code === 'auth/invalid-email') return 'Please enter a valid email address first.';
+  if (code === 'auth/missing-email') return 'Enter your email, then tap Forgot password.';
+  if (code === 'auth/too-many-requests') return 'Too many attempts. Please try again later.';
+  return error && error.message ? error.message : 'Unable to send reset email right now.';
 }
 
 export function renderLoginForm(container, renderWelcomePageWithEvents, renderSignupForm) {
@@ -25,6 +33,7 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
     <label for="login-password">Password:</label>
     <input type="password" id="login-password" placeholder="Password" required />
     <button type="submit" id="sub-login" class="main-btn">Login</button>
+    <div class="switch-link"><span id="forgot-password" style="color:#102cac;cursor:pointer;text-decoration:underline;">Forgot password?</span></div>
     <div class="message" id="login-message"></div>
     <div class="switch-link">Don't have an account? <span id="to-signup" style="color:#102cac;cursor:pointer;text-decoration:underline;">Sign up here!</span></div>
   `;
@@ -81,5 +90,24 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
   const toSignup = form.querySelector('#to-signup');
   if (toSignup && typeof renderSignupForm === 'function') {
     toSignup.onclick = () => renderSignupForm(container, renderWelcomePageWithEvents, renderLoginForm);
+  }
+
+  const forgotPassword = form.querySelector('#forgot-password');
+  if (forgotPassword) {
+    forgotPassword.addEventListener('click', async () => {
+      const message = document.getElementById('login-message');
+      const email = document.getElementById('login-email').value.trim();
+      if (!email) {
+        message.innerText = 'Enter your email, then tap Forgot password.';
+        return;
+      }
+
+      try {
+        await sendFirebasePasswordReset(email);
+        message.innerText = 'Password reset email sent. Check your inbox.';
+      } catch (error) {
+        message.innerText = mapPasswordResetError(error);
+      }
+    });
   }
 }
