@@ -5,7 +5,6 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  orderBy,
   query,
   updateDoc,
   where,
@@ -24,14 +23,15 @@ export async function getUserNotifications(userName, apartmentCode) {
   const notificationsRef = getNotificationsCollectionRef(apartmentCode);
   const notificationsQuery = query(
     notificationsRef,
-    where('userName', '==', userName),
-    orderBy('createdAt', 'desc')
+    where('userName', '==', userName)
   );
   const snapshot = await getDocs(notificationsQuery);
-  return snapshot.docs.map((notificationDoc) => ({
-    id: notificationDoc.id,
-    ...(notificationDoc.data() || {}),
-  }));
+  return snapshot.docs
+    .map((notificationDoc) => ({
+      id: notificationDoc.id,
+      ...(notificationDoc.data() || {}),
+    }))
+    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
 }
 
 export async function clearUserNotifications(userName, apartmentCode) {
