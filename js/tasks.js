@@ -8,7 +8,8 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
+  limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -24,6 +25,7 @@ const EMERGENCY_MIN_IMAGE_DIMENSION = 320;
 const EMERGENCY_IMAGE_QUALITY = 0.34;
 const EMERGENCY_MIN_IMAGE_QUALITY = 0.25;
 const EMERGENCY_TARGET_IMAGE_DATA_URL_LENGTH = 120000;
+const TASKS_QUERY_LIMIT = 180;
 
 function isQuotaError(error) {
   if (!error) return false;
@@ -268,26 +270,15 @@ async function renderTasksPage(container, access) {
     return;
   }
 
-  async function loadTasksFromFirestore() {
-    const q = query(tasksCollectionRef, orderBy('createdAt', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((taskDoc) => {
-      const data = taskDoc.data() || {};
-      return {
-        id: taskDoc.id,
-        room: String(data.room || 'Other'),
-        title: String(data.title || ''),
-        date: String(data.date || ''),
-        time: String(data.time || ''),
-        assignee: String(data.assignee || ''),
-        assigneeName: String(data.assigneeName || ''),
-        image: data.image || data.imageUrl || null,
-      };
-    });
-  }
+  let tasks = [];
+  let unsubscribeTasks = null;
 
-  async function loadTasks() {
-    return loadTasksFromFirestore();
+  function getCreatedAtValue(taskData) {
+    const createdAt = taskData && taskData.createdAt ? taskData.createdAt : null;
+    if (!createdAt) return 0;
+    if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
+    const numeric = Number(createdAt);
+    return Number.isFinite(numeric) ? numeric : 0;
   }
 
   async function createTask(room, title, date, time, assignee, assigneeName, image) {
@@ -306,8 +297,6 @@ async function renderTasksPage(container, access) {
       ...taskPayload,
       createdAt: serverTimestamp(),
     });
-
-    await renderTasks();
     return taskRef.id;
   }
 
@@ -343,7 +332,6 @@ async function renderTasksPage(container, access) {
   async function deleteTask(id) {
     const normalizedId = String(id);
     await deleteDoc(doc(tasksCollectionRef, normalizedId));
-    await renderTasks();
   }
 
   function showImageModal(src) {
@@ -362,8 +350,7 @@ async function renderTasksPage(container, access) {
     m.addEventListener('click', (e) => { if (e.target === m) m.remove(); });
   }
 
-  async function renderTasks() {
-    const tasks = await loadTasks();
+  function renderTasks() {
     const rooms = {
       'Kitchen': page.querySelector('#kitchen-list'),
       'Living Room': page.querySelector('#livingroom-list'),
@@ -430,6 +417,43 @@ async function renderTasksPage(container, access) {
       }
     }
   }
+
+  const tasksQuery = query(
+    tasksCollectionRef,
+    orderBy('createdAt', 'desc'),
+    limit(TASKS_QUERY_LIMIT)
+  );
+
+  unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+    tasks = snapshot.docs
+      .map((taskDoc) => {
+        const data = taskDoc.data() || {};
+        return {
+          id: taskDoc.id,
+          room: String(data.room || 'Other'),
+          title: String(data.title || ''),
+          date: String(data.date || ''),
+          time: String(data.time || ''),
+          assignee: String(data.assignee || ''),
+          assigneeName: String(data.assigneeName || ''),
+          image: data.image || data.imageUrl || null,
+          createdAtValue: getCreatedAtValue(data),
+        };
+      })
+      .sort((a, b) => a.createdAtValue - b.createdAtValue);
+
+    renderTasks();
+  }, (error) => {
+    console.error('Unable to subscribe to tasks:', error);
+  });
+
+  const cleanupListener = () => {
+    if (typeof unsubscribeTasks === 'function') {
+      unsubscribeTasks();
+      unsubscribeTasks = null;
+    }
+  };
+  window.addEventListener('pagehide', cleanupListener, { once: true });
 
   // Add button (single floating) — open modal when clicked
   let lastRoom = 'Other';
@@ -538,9 +562,7 @@ async function renderTasksPage(container, access) {
     if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
   });
 
-  renderTasks().catch((error) => {
-    console.error('Initial task render failed:', error);
-  });
+  renderTasks();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
