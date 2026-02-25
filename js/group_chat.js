@@ -4,10 +4,14 @@ import { getApartmentProfilesMap } from './profiles.js';
 import {
   addDoc,
   collection,
+  getCountFromServer,
   getDocs,
+  limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  writeBatch,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
@@ -22,6 +26,9 @@ const EMERGENCY_MIN_IMAGE_DIMENSION = 320;
 const EMERGENCY_IMAGE_QUALITY = 0.34;
 const EMERGENCY_MIN_IMAGE_QUALITY = 0.25;
 const EMERGENCY_TARGET_IMAGE_DATA_URL_LENGTH = 120000;
+const CHAT_MESSAGE_LIMIT = 120;
+const CHAT_MAX_STORED_MESSAGES = 500;
+const CHAT_PRUNE_MAX_DELETES_PER_SEND = 50;
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -111,6 +118,29 @@ function isFirestoreMessageSizeError(error) {
   return code === 'invalid-argument' || code === 'resource-exhausted';
 }
 
+async function pruneChatMessagesIfNeeded(messagesCollectionRef) {
+  const countSnapshot = await getCountFromServer(messagesCollectionRef);
+  const totalMessages = countSnapshot && countSnapshot.data ? countSnapshot.data().count : 0;
+  const excessMessages = Number(totalMessages || 0) - CHAT_MAX_STORED_MESSAGES;
+
+  if (excessMessages <= 0) return;
+
+  const pruneAmount = Math.min(excessMessages, CHAT_PRUNE_MAX_DELETES_PER_SEND);
+  const oldestMessagesQuery = query(
+    messagesCollectionRef,
+    orderBy('createdAt', 'asc'),
+    limit(pruneAmount)
+  );
+  const oldestMessagesSnapshot = await getDocs(oldestMessagesQuery);
+  if (oldestMessagesSnapshot.empty) return;
+
+  const batch = writeBatch(messagesCollectionRef.firestore);
+  oldestMessagesSnapshot.docs.forEach((messageDoc) => {
+    batch.delete(messageDoc.ref);
+  });
+  await batch.commit();
+}
+
 async function renderGroupChatPage(container, userName = 'You', apartmentCode = null) {
   // Clear container
   container.innerHTML = '';
@@ -171,22 +201,14 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   const userProfile = profiles[userName] || {};
 
   let messages = [];
+  let unsubscribeMessages = null;
 
-  async function loadMessages() {
-    const messageQuery = query(messagesCollectionRef, orderBy('createdAt', 'asc'));
-    const snapshot = await getDocs(messageQuery);
-    messages = snapshot.docs.map((messageDoc) => {
-      const data = messageDoc.data() || {};
-      return {
-        id: messageDoc.id,
-        sender: String(data.sender || ''),
-        text: String(data.text || ''),
-        attachmentData: data.attachmentData || null,
-        attachmentUrl: data.attachmentUrl || null,
-        attachmentType: String(data.attachmentType || ''),
-        attachmentName: String(data.attachmentName || ''),
-      };
-    });
+  function getMessageCreatedAtValue(messageData) {
+    const createdAt = messageData && messageData.createdAt ? messageData.createdAt : null;
+    if (!createdAt) return 0;
+    if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
+    const numeric = Number(createdAt);
+    return Number.isFinite(numeric) ? numeric : 0;
   }
 
   function renderMessages() {
@@ -221,8 +243,41 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  await loadMessages();
-  renderMessages();
+  const messageQuery = query(
+    messagesCollectionRef,
+    orderBy('createdAt', 'desc'),
+    limit(CHAT_MESSAGE_LIMIT)
+  );
+
+  unsubscribeMessages = onSnapshot(messageQuery, (snapshot) => {
+    messages = snapshot.docs
+      .map((messageDoc) => {
+        const data = messageDoc.data() || {};
+        return {
+          id: messageDoc.id,
+          sender: String(data.sender || ''),
+          text: String(data.text || ''),
+          attachmentData: data.attachmentData || null,
+          attachmentUrl: data.attachmentUrl || null,
+          attachmentType: String(data.attachmentType || ''),
+          attachmentName: String(data.attachmentName || ''),
+          createdAtValue: getMessageCreatedAtValue(data),
+        };
+      })
+      .sort((a, b) => a.createdAtValue - b.createdAtValue);
+    renderMessages();
+  }, (error) => {
+    console.error('Unable to subscribe to chat messages:', error);
+  });
+
+  const cleanupListener = () => {
+    if (typeof unsubscribeMessages === 'function') {
+      unsubscribeMessages();
+      unsubscribeMessages = null;
+    }
+  };
+
+  window.addEventListener('pagehide', cleanupListener, { once: true });
 
   function setUploadState(isBusy, message = '') {
     if (uploadStatus) uploadStatus.textContent = message;
@@ -312,10 +367,18 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           attachmentName,
           createdAt: serverTimestamp(),
         });
+        await pruneChatMessagesIfNeeded(messagesCollectionRef);
       } catch (error) {
         if (isFirestoreMessageSizeError(error)) {
           setUploadState(false, '');
           alert('Message payload is too large. Please shorten the message or use a smaller attachment.');
+          return;
+        }
+
+        if (String(error && error.code || '') === 'permission-denied') {
+          setUploadState(false, '');
+          console.error('Message save or pruning was denied by Firestore rules:', error);
+          alert('Your message may have been sent, but auto-cleanup is blocked by Firestore permissions.');
           return;
         }
 
@@ -325,8 +388,6 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         return;
       }
       setUploadState(false, '');
-      await loadMessages();
-      renderMessages();
       messageInput.value = '';
       clearPendingAttachment(true);
     }

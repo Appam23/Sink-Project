@@ -6,11 +6,14 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
+  limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
+
+const EVENTS_QUERY_LIMIT = 180;
 
 async function notifyRoommatesAboutNewEvent(eventName, actorUser, apartmentCode, members = []) {
   if (!apartmentCode || !Array.isArray(members)) return;
@@ -25,21 +28,6 @@ async function notifyRoommatesAboutNewEvent(eventName, actorUser, apartmentCode,
     });
   });
   await Promise.all(notificationWrites.filter(Boolean));
-}
-
-async function loadEvents(eventsCollectionRef) {
-  const eventsQuery = query(eventsCollectionRef, orderBy('createdAt', 'asc'));
-  const snapshot = await getDocs(eventsQuery);
-  return snapshot.docs.map((eventDoc) => {
-    const data = eventDoc.data() || {};
-    return {
-      id: eventDoc.id,
-      name: String(data.name || ''),
-      date: String(data.date || ''),
-      time: String(data.time || ''),
-      room: String(data.room || ''),
-    };
-  });
 }
 
 async function renderCalendarPage(container, apartmentCode, currentUser, apartmentMembers = []) {
@@ -68,16 +56,28 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
 
   container.appendChild(page);
 
-  const events = await loadEvents(eventsCollectionRef);
-
   // Render events
   const eventsList = page.querySelector('#events-list');
-  if (eventsList) {
+  let events = [];
+  let unsubscribeEvents = null;
+
+  function getCreatedAtValue(eventData) {
+    const createdAt = eventData && eventData.createdAt ? eventData.createdAt : null;
+    if (!createdAt) return 0;
+    if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
+    const numeric = Number(createdAt);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  function renderEventsList() {
+    if (!eventsList) return;
     if (events.length === 0) {
       eventsList.innerHTML = '<div class="no-events">No events yet. Add one to get started!</div>';
-    } else {
-      eventsList.innerHTML = '';
-      events.forEach((event) => {
+      return;
+    }
+
+    eventsList.innerHTML = '';
+    events.forEach((event) => {
         const eventRow = document.createElement('div');
         eventRow.className = 'event-row';
         eventRow.innerHTML = `
@@ -97,7 +97,6 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
           deleteBtn.addEventListener('click', async () => {
             try {
               await deleteDoc(doc(eventsCollectionRef, event.id));
-              await renderCalendarPage(container, apartmentCode, currentUser);
             } catch (error) {
               console.error('Unable to delete event:', error);
               alert('Unable to delete this event right now. Please try again.');
@@ -107,16 +106,47 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
 
         eventsList.appendChild(eventRow);
       });
-    }
   }
+
+  const eventsQuery = query(
+    eventsCollectionRef,
+    orderBy('createdAt', 'desc'),
+    limit(EVENTS_QUERY_LIMIT)
+  );
+
+  unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
+    events = snapshot.docs
+      .map((eventDoc) => {
+        const data = eventDoc.data() || {};
+        return {
+          id: eventDoc.id,
+          name: String(data.name || ''),
+          date: String(data.date || ''),
+          time: String(data.time || ''),
+          room: String(data.room || ''),
+          createdAtValue: getCreatedAtValue(data),
+        };
+      })
+      .sort((a, b) => a.createdAtValue - b.createdAtValue);
+
+    renderEventsList();
+  }, (error) => {
+    console.error('Unable to subscribe to events:', error);
+  });
+
+  const cleanupListener = () => {
+    if (typeof unsubscribeEvents === 'function') {
+      unsubscribeEvents();
+      unsubscribeEvents = null;
+    }
+  };
+  window.addEventListener('pagehide', cleanupListener, { once: true });
 
   // Add event button
   const addBtn = page.querySelector('#add-event-btn');
   if (addBtn) {
     addBtn.addEventListener('click', () => {
-      showAddEventModal(container, eventsCollectionRef, currentUser, async () => {
-        await renderCalendarPage(container, apartmentCode, currentUser, apartmentMembers);
-      }, apartmentCode, apartmentMembers);
+      showAddEventModal(container, eventsCollectionRef, currentUser, null, apartmentCode, apartmentMembers);
     });
   }
 

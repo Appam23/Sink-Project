@@ -1,5 +1,5 @@
 import { requireApartmentMembershipAsync } from './auth.js';
-import { clearUserNotifications, getUserNotifications, markAllNotificationsRead } from './notifications.js';
+import { clearUserNotifications, markAllNotificationsRead, subscribeToUserNotifications } from './notifications.js';
 import { deleteUserProfile, getApartmentProfilesMap } from './profiles.js';
 import { signOutFirebaseUser } from './firebase.js';
 import {
@@ -228,6 +228,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   const clearNotificationsBtn = page.querySelector('#clear-notifications-btn');
 
   let notifications = [];
+  let unsubscribeNotifications = null;
 
   function renderNotifications() {
     if (!notificationsList || !notificationsCount) return;
@@ -259,13 +260,25 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     });
   }
 
-  try {
-    notifications = await getUserNotifications(currentUser, code);
-  } catch (error) {
-    console.error('Unable to load notifications:', error);
-    notifications = [];
-  }
-  renderNotifications();
+  unsubscribeNotifications = subscribeToUserNotifications(
+    currentUser,
+    code,
+    (nextNotifications) => {
+      notifications = Array.isArray(nextNotifications) ? nextNotifications : [];
+      renderNotifications();
+    },
+    (error) => {
+      console.error('Unable to subscribe to notifications:', error);
+    }
+  );
+
+  const cleanupNotifications = () => {
+    if (typeof unsubscribeNotifications === 'function') {
+      unsubscribeNotifications();
+      unsubscribeNotifications = null;
+    }
+  };
+  window.addEventListener('pagehide', cleanupNotifications, { once: true });
 
   if (settingsBtn && settingsPopup) {
     settingsBtn.addEventListener('click', (event) => {
