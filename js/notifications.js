@@ -5,6 +5,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  onSnapshot,
   query,
   updateDoc,
   where,
@@ -77,4 +78,40 @@ export async function addNotificationForUser(userName, apartmentCode, notificati
     read: false,
     ...notification,
   });
+}
+
+export function subscribeToUserNotifications(userName, apartmentCode, onChange, onError = null) {
+  if (!userName || !apartmentCode || typeof onChange !== 'function') {
+    return () => {};
+  }
+
+  let notificationsRef;
+  try {
+    notificationsRef = getNotificationsCollectionRef(apartmentCode);
+  } catch (error) {
+    if (typeof onError === 'function') onError(error);
+    return () => {};
+  }
+
+  const notificationsQuery = query(
+    notificationsRef,
+    where('userName', '==', userName)
+  );
+
+  return onSnapshot(
+    notificationsQuery,
+    (snapshot) => {
+      const notifications = snapshot.docs
+        .map((notificationDoc) => ({
+          id: notificationDoc.id,
+          ...(notificationDoc.data() || {}),
+        }))
+        .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+
+      onChange(notifications);
+    },
+    (error) => {
+      if (typeof onError === 'function') onError(error);
+    }
+  );
 }

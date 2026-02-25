@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
+import { getFirestore, initializeFirestore } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCpmk_QVCm7qH5wKFN3yvjQe2xZhEC2vMA',
@@ -27,9 +27,20 @@ let initError = null;
 
 function createFirebaseServices() {
   const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  let db;
+
+  try {
+    db = initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false,
+    });
+  } catch {
+    db = getFirestore(app);
+  }
+
   return {
     app,
-    db: getFirestore(app),
+    db,
     auth: getAuth(app),
   };
 }
