@@ -713,7 +713,6 @@ input, .bio-input {
     transition: background 0.2s;
 }
 .profile-form {
-         margin-bottom: 100px;
          width: 100%;
          max-width: 100%;
          box-sizing: border-box;
