@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js';
 import {
+  connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
@@ -8,7 +9,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js';
-import { getFirestore, initializeFirestore } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
+import { connectFirestoreEmulator, getFirestore, initializeFirestore } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCpmk_QVCm7qH5wKFN3yvjQe2xZhEC2vMA',
@@ -24,6 +25,42 @@ let firebaseApp = null;
 let firestoreDb = null;
 let firebaseAuth = null;
 let initError = null;
+let emulatorsConnected = false;
+
+function shouldUseFirebaseEmulators() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (!isLocalHost) {
+    return false;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('useEmulators') === '1') {
+    return true;
+  }
+  if (params.get('useEmulators') === '0') {
+    return false;
+  }
+
+  const storedValue = window.localStorage.getItem('useFirebaseEmulators');
+  if (storedValue === 'true') return true;
+  if (storedValue === 'false') return false;
+
+  return false;
+}
+
+function connectFirebaseEmulatorsIfNeeded(db, auth) {
+  if (emulatorsConnected || !shouldUseFirebaseEmulators()) {
+    return;
+  }
+
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  emulatorsConnected = true;
+}
 
 function createFirebaseServices() {
   const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -38,10 +75,13 @@ function createFirebaseServices() {
     db = getFirestore(app);
   }
 
+  const auth = getAuth(app);
+  connectFirebaseEmulatorsIfNeeded(db, auth);
+
   return {
     app,
     db,
-    auth: getAuth(app),
+    auth,
   };
 }
 

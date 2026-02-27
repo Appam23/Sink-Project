@@ -26,6 +26,7 @@ async function deleteUserAccountData(userName, apartmentCode = null) {
 async function renderHomePage(container, userName = 'You', apartmentCode = null, apartmentData = null) {
   // Clear container
   container.innerHTML = '';
+  container.classList.add('home-container');
 
   const code = apartmentCode;
   let members = Array.isArray(apartmentData && apartmentData.members) ? [...apartmentData.members] : [];

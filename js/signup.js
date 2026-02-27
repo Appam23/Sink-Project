@@ -1,7 +1,18 @@
 import { createFirebaseEmailUser } from './firebase.js';
 
+function isLocalDevHost() {
+  if (typeof window === 'undefined') return false;
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+
 function mapSignupError(error) {
   const code = error && error.code ? String(error.code) : '';
+  if (code.startsWith('auth/requests-from-referer-')) {
+    return 'This local URL is blocked by Firebase Auth. Add localhost and 127.0.0.1 to Authentication > Settings > Authorized domains.';
+  }
+  if (code === 'auth/network-request-failed' && isLocalDevHost()) {
+    return 'Cannot reach Firebase Auth locally. Start emulator with: firebase emulators:start --only auth';
+  }
   if (code === 'auth/email-already-in-use') return 'An account with this email already exists.';
   if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
   if (code === 'auth/weak-password') return 'Password should be at least 6 characters.';

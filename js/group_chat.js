@@ -4,6 +4,8 @@ import { getApartmentProfilesMap } from './profiles.js';
 import {
   addDoc,
   collection,
+  deleteDoc,
+  doc,
   getCountFromServer,
   getDocs,
   limit,
@@ -11,6 +13,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
@@ -145,7 +148,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   // Clear container
   container.innerHTML = '';
 
-  const { db, error: firebaseInitError } = initializeFirebaseServices();
+  const { db, auth, error: firebaseInitError } = initializeFirebaseServices();
   const messagesCollectionRef = db && apartmentCode
     ? collection(db, 'apartments', apartmentCode, 'chatMessages')
     : null;
@@ -192,6 +195,9 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   const sendBtn = page.querySelector('#chat-send-btn');
   const attachmentPreview = page.querySelector('#chat-attachment-preview');
   const uploadStatus = page.querySelector('#chat-upload-status');
+  let messageActionMenu = null;
+  let activeMessageForMenu = null;
+  let activeMessageBubble = null;
 
   let pendingAttachmentData = null;
   let pendingAttachmentType = '';
@@ -199,6 +205,31 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
 
   const profiles = apartmentCode ? await getApartmentProfilesMap(apartmentCode) : {};
   const userProfile = profiles[userName] || {};
+  const authDisplayName = auth && auth.currentUser && auth.currentUser.displayName
+    ? String(auth.currentUser.displayName).trim()
+    : '';
+
+  function formatFallbackName(value) {
+    const text = String(value || '').trim();
+    if (!text) return 'Roommate';
+    const emailPrefix = text.includes('@') ? text.split('@')[0] : text;
+    return emailPrefix
+      .replace(/[._-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function getProfileDisplayName(profile) {
+    if (!profile || typeof profile !== 'object') return '';
+    const firstName = profile.firstName ? String(profile.firstName).trim() : '';
+    const lastName = profile.lastName ? String(profile.lastName).trim() : '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    if (fullName) return fullName;
+    return '';
+  }
+
+  const currentUserDisplayName = getProfileDisplayName(userProfile) || authDisplayName || formatFallbackName(userName);
 
   let messages = [];
   let unsubscribeMessages = null;
@@ -209,6 +240,122 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
     if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
     const numeric = Number(createdAt);
     return Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  function closeMessageActionMenu() {
+    if (!messageActionMenu) return;
+    messageActionMenu.classList.add('hidden');
+    messageActionMenu.style.left = '';
+    messageActionMenu.style.top = '';
+    if (activeMessageBubble) {
+      activeMessageBubble.classList.remove('message-bubble-active');
+      activeMessageBubble = null;
+    }
+    activeMessageForMenu = null;
+  }
+
+  async function editOwnMessage(messageData) {
+    if (!messageData || !messageData.id) return;
+    const nextText = window.prompt('Edit your message:', messageData.text || '');
+    if (nextText === null) return;
+
+    const trimmedText = String(nextText).trim();
+    if (!trimmedText && !messageData.attachmentData) {
+      alert('Message cannot be empty. Delete it instead.');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(messagesCollectionRef, messageData.id), {
+        text: trimmedText,
+        editedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Unable to edit message:', error);
+      alert('Unable to edit message right now. Please try again.');
+    }
+  }
+
+  async function deleteOwnMessage(messageData) {
+    if (!messageData || !messageData.id) return;
+    const confirmDelete = window.confirm('Delete this message? This cannot be undone.');
+    if (!confirmDelete) return;
+
+    try {
+      await deleteDoc(doc(messagesCollectionRef, messageData.id));
+    } catch (error) {
+      console.error('Unable to delete message:', error);
+      alert('Unable to delete message right now. Please try again.');
+    }
+  }
+
+  function ensureMessageActionMenu() {
+    if (messageActionMenu) return messageActionMenu;
+
+    messageActionMenu = document.createElement('div');
+    messageActionMenu.className = 'chat-message-action-menu hidden';
+    messageActionMenu.innerHTML = `
+      <button type="button" class="chat-message-action-btn" data-action="edit">Edit</button>
+      <button type="button" class="chat-message-action-btn delete" data-action="delete">Delete</button>
+    `;
+    document.body.appendChild(messageActionMenu);
+
+    messageActionMenu.addEventListener('click', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const action = target.getAttribute('data-action');
+      if (!action || !activeMessageForMenu) return;
+
+      if (action === 'edit') {
+        await editOwnMessage(activeMessageForMenu);
+      }
+      if (action === 'delete') {
+        await deleteOwnMessage(activeMessageForMenu);
+      }
+
+      closeMessageActionMenu();
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!messageActionMenu || messageActionMenu.classList.contains('hidden')) return;
+      const target = event.target;
+      if (target instanceof Node && messageActionMenu.contains(target)) return;
+      closeMessageActionMenu();
+    });
+
+    window.addEventListener('resize', closeMessageActionMenu);
+    chatBox.addEventListener('scroll', closeMessageActionMenu, { passive: true });
+
+    return messageActionMenu;
+  }
+
+  function openMessageActionMenu(messageData, messageBubble) {
+    const menu = ensureMessageActionMenu();
+    if (activeMessageBubble && activeMessageBubble !== messageBubble) {
+      activeMessageBubble.classList.remove('message-bubble-active');
+    }
+    activeMessageForMenu = messageData;
+    activeMessageBubble = messageBubble;
+    activeMessageBubble.classList.add('message-bubble-active');
+
+    menu.classList.remove('hidden');
+    menu.style.visibility = 'hidden';
+
+    const bubbleRect = messageBubble.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+
+    let left = bubbleRect.left + (bubbleRect.width - menuRect.width) / 2;
+    left = Math.max(8, Math.min(left, viewportWidth - menuRect.width - 8));
+
+    let top = bubbleRect.top - menuRect.height - 8;
+    if (top < 8) {
+      top = bubbleRect.bottom + 8;
+    }
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.style.visibility = 'visible';
   }
 
   function renderMessages() {
@@ -222,6 +369,8 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       const attachmentType = msg.attachmentType || '';
       const attachmentName = msg.attachmentName || 'Attached File';
       const isImageAttachment = Boolean(attachmentData) && attachmentType.startsWith('image/');
+      const profileDisplayName = getProfileDisplayName(profiles[msg.sender]);
+      const senderLabel = msg.senderDisplayName || profileDisplayName || formatFallbackName(msg.sender);
 
       const attachmentHtml = attachmentData
         ? (isImageAttachment
@@ -234,10 +383,55 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       messageBubble.innerHTML = `
         <img src="${senderPic}" class="message-pic" />
         <div class="message-content">
+          <span class="message-sender">${senderLabel}</span>
           ${msg.text ? `<p>${msg.text}</p>` : ''}
           ${attachmentHtml}
         </div>
       `;
+
+      if (msg.sender === userName && msg.id) {
+        const openOwnMessageActions = () => {
+          openMessageActionMenu({
+            id: msg.id,
+            text: msg.text,
+            attachmentData,
+          }, messageBubble);
+        };
+
+        messageBubble.addEventListener('dblclick', (event) => {
+          event.preventDefault();
+          openOwnMessageActions();
+        });
+
+        let longPressTimer = null;
+        let longPressTriggered = false;
+
+        const clearLongPress = () => {
+          if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+        };
+
+        messageBubble.addEventListener('touchstart', () => {
+          longPressTriggered = false;
+          clearLongPress();
+          longPressTimer = setTimeout(() => {
+            longPressTriggered = true;
+            openOwnMessageActions();
+          }, 550);
+        }, { passive: true });
+
+        messageBubble.addEventListener('touchmove', clearLongPress, { passive: true });
+        messageBubble.addEventListener('touchcancel', clearLongPress, { passive: true });
+        messageBubble.addEventListener('touchend', (event) => {
+          clearLongPress();
+          if (longPressTriggered) {
+            event.preventDefault();
+          }
+        });
+      }
+
       chatBox.appendChild(messageBubble);
     });
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -256,6 +450,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         return {
           id: messageDoc.id,
           sender: String(data.sender || ''),
+          senderDisplayName: String(data.senderDisplayName || ''),
           text: String(data.text || ''),
           attachmentData: data.attachmentData || null,
           attachmentUrl: data.attachmentUrl || null,
@@ -361,6 +556,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         setUploadState(true, 'Saving message...');
         await addDoc(messagesCollectionRef, {
           sender: userName,
+          senderDisplayName: currentUserDisplayName,
           text,
           attachmentData,
           attachmentType,

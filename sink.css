@@ -59,16 +59,22 @@
     display: flex;
     justify-content: space-around;
     align-items: center;
-    /* Let the footer sit as a normal flex child at the bottom of the container */
-    position: relative;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
     background: #fff;
     border-top: 1px solid #e0e0e0;
     padding: 8px 0;
-    height: 56px;
+    min-height: 56px;
     box-sizing: border-box;
-    margin-top: auto;
-    z-index: 10;
+    margin-top: 0;
+    z-index: 20;
+}
+
+.container.has-footer {
+    padding-bottom: 72px;
 }
 
 .footer-btn {
@@ -274,11 +280,12 @@
 body {
     font-family: Arial, Helvetica, sans-serif;
     background: #e3e4ef;
+    margin: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
+    min-height: 100vh;
 }
 .container {
     background: hsl(0, 100%, 99%);
@@ -299,6 +306,64 @@ body {
         overflow-y: auto;
 }
 
+@media (max-width: 768px) {
+    body {
+        background: #fff;
+        justify-content: flex-start;
+    }
+
+    .container {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        max-height: none;
+        padding: 20px 14px 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    h2 {
+        margin-bottom: 1.1em;
+    }
+
+    input,
+    .bio-input {
+        width: 100%;
+    }
+
+    .main-btn,
+    #show-login,
+    #show-signup,
+    #back-btn,
+    #sub-login,
+    #sub-signup {
+        width: 100%;
+        max-width: none;
+    }
+
+    .profile-footer {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        min-height: 60px;
+        padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+        z-index: 1000;
+    }
+
+    .footer-btn {
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .container.has-footer {
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    }
+}
+
 /* Profile page main area (optional for further control) */
 .profile-page {
     width: 100%;
@@ -314,6 +379,26 @@ body {
     box-sizing: border-box;
     flex: 1 1 auto;
     position: relative;
+}
+
+@media (min-width: 769px) {
+    .container.home-container {
+        overflow: hidden;
+    }
+
+    .container.home-container .home-page {
+        height: 100%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .container.home-container .home-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-bottom: 84px;
+    }
 }
 
 .home-header {
@@ -689,7 +774,7 @@ body {
 
     /* Ensure main buttons span the available width on small devices */
     .main-btn, #show-login, #show-signup, #back-btn, #sub-login, #sub-signup {
-        width: 90%;
+        width: 100%;
         max-width: none;
         margin-left: auto;
         margin-right: auto;
@@ -1155,7 +1240,6 @@ button:hover, .main-btn:hover {
 }
 
 .container.tasks-container .profile-footer {
-    flex: 0 0 56px;
     margin-top: 0;
 }
 
@@ -1263,6 +1347,8 @@ button:hover, .main-btn:hover {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
     width: 100%;
     box-sizing: border-box;
 }
@@ -1278,7 +1364,8 @@ button:hover, .main-btn:hover {
 }
 
 .chat-box {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 10px;
     overflow-y: auto;
     background: #f5f5f5;
@@ -1288,12 +1375,21 @@ button:hover, .main-btn:hover {
 }
 
 .message-bubble {
-    display: flex;
-    align-items: flex-end;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: end;
+    column-gap: 10px;
     max-width: 50%;
     padding: 10px;
     border-radius: 10px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    transform-origin: center;
+}
+
+.message-bubble.message-bubble-active {
+    transform: scale(1.03);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .message-bubble.sent {
@@ -1310,18 +1406,32 @@ button:hover, .main-btn:hover {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    margin: 0 10px;
+    margin: 0;
     object-fit: cover;
 }
 
 .message-content {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-auto-rows: min-content;
     gap: 5px;
+    min-width: 0;
+}
+
+.message-content p {
+    margin: 4px 0;
+}
+
+.message-sender {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #3b3b3b;
+    opacity: 0.86;
 }
 
 .chat-input-form {
     display: flex;
+    order: 3;
+    margin-top: auto;
     padding: 10px;
     border-top: 1px solid #e0e0e0;
     background: #fff;
@@ -1368,8 +1478,9 @@ button:hover, .main-btn:hover {
 }
 
 .chat-upload-status {
+    order: 2;
     min-height: 18px;
-    padding: 0 12px 8px;
+    padding: 8px 12px;
     color: #6d6d6d;
     font-size: 0.85rem;
 }
@@ -1387,6 +1498,37 @@ button:hover, .main-btn:hover {
     border-radius: 8px;
     padding: 6px;
     max-width: 220px;
+}
+
+.chat-message-action-menu {
+    position: fixed;
+    z-index: 1600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+}
+
+.chat-message-action-menu.hidden {
+    display: none;
+}
+
+.chat-message-action-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    background: #47d9ca;
+    color: #fff;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.chat-message-action-btn.delete {
+    background: #ef5350;
 }
 
 .preview-image {
