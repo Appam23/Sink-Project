@@ -19,7 +19,7 @@
     align-items: center;
     box-sizing: border-box;
 }
-#save-profile-btn, #quit-profile-btn, .upload-btn, #back-to-apartment-btn {
+#save-profile-btn, .upload-btn, #back-to-apartment-btn {
     background: #47d9ca;
     padding: 6px 16px;
     border-radius: 5px;

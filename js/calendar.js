@@ -30,6 +30,24 @@ async function notifyRoommatesAboutNewEvent(eventName, actorUser, apartmentCode,
   await Promise.all(notificationWrites.filter(Boolean));
 }
 
+function toDisplayName(value) {
+  const input = String(value || '').trim();
+  if (!input) return 'Roommate';
+  return input.charAt(0).toUpperCase() + input.slice(1);
+}
+
+function getActorDisplayName(actorUser) {
+  const { auth } = initializeFirebaseServices();
+  const authDisplayName = auth && auth.currentUser && auth.currentUser.displayName
+    ? String(auth.currentUser.displayName).trim()
+    : '';
+  if (authDisplayName) return authDisplayName;
+
+  const fallback = String(actorUser || '').trim();
+  const base = fallback.includes('@') ? fallback.split('@')[0] : fallback;
+  return toDisplayName(base);
+}
+
 async function renderCalendarPage(container, apartmentCode, currentUser, apartmentMembers = []) {
   // Clear container
   container.innerHTML = '';
@@ -268,7 +286,7 @@ function showAddEventModal(container, eventsCollectionRef, currentUser, onSaved,
           createdBy: currentUser,
           createdAt: serverTimestamp(),
         });
-        await notifyRoommatesAboutNewEvent(newEvent.name, currentUser, apartmentCode, apartmentMembers);
+        await notifyRoommatesAboutNewEvent(newEvent.name, getActorDisplayName(currentUser), apartmentCode, apartmentMembers);
         modal.remove();
         if (typeof onSaved === 'function') {
           await onSaved();

@@ -123,6 +123,14 @@ async function renderTasksPage(container, access) {
 
   const profiles = apartmentCode ? await getApartmentProfilesMap(apartmentCode) : {};
 
+  const authDisplayName = (() => {
+    const { auth } = initializeFirebaseServices();
+    const displayName = auth && auth.currentUser && auth.currentUser.displayName
+      ? String(auth.currentUser.displayName).trim()
+      : '';
+    return displayName;
+  })();
+
   function toDisplayName(value) {
     const input = String(value || '').trim();
     if (!input) return 'Roommate';
@@ -138,6 +146,21 @@ async function renderTasksPage(container, access) {
     }
     return toDisplayName(memberId);
   }
+
+  function getActorDisplayName() {
+    const actorProfile = profiles[currentUser] || {};
+    const profileFirstName = actorProfile.firstName ? String(actorProfile.firstName).trim() : '';
+    const profileLastName = actorProfile.lastName ? String(actorProfile.lastName).trim() : '';
+    const profileFullName = `${profileFirstName} ${profileLastName}`.trim();
+    if (profileFullName) return profileFullName;
+    if (authDisplayName) return authDisplayName;
+
+    const fallback = String(currentUser || 'Roommate');
+    const emailPrefix = fallback.includes('@') ? fallback.split('@')[0] : fallback;
+    return toDisplayName(emailPrefix);
+  }
+
+  const actorDisplayName = getActorDisplayName();
 
   if (members && !members.includes(currentUser)) members.push(currentUser);
 
@@ -189,7 +212,7 @@ async function renderTasksPage(container, access) {
         <input type="date" id="task-date" required />
 
         <label>Time:</label>
-        <input type="time" id="task-time" required />
+        <input type="time" id="task-time" />
 
         <label>Room:</label>
         <select id="task-room" required>
@@ -308,7 +331,7 @@ async function renderTasksPage(container, access) {
         if (member === currentUser) return;
         return addNotificationForUser(member, apartmentCode, {
           type: 'task',
-          message: `${currentUser} assigned a task to everyone: ${taskTitle}`,
+          message: `${actorDisplayName} assigned a task to everyone: ${taskTitle}`,
           link: `tasks.html?taskId=${taskId}`,
         });
       });
@@ -319,7 +342,7 @@ async function renderTasksPage(container, access) {
     if (!assignee || assignee === currentUser) return;
     await addNotificationForUser(assignee, apartmentCode, {
       type: 'task',
-      message: `${currentUser} assigned you a task: ${taskTitle}`,
+      message: `${actorDisplayName} assigned you a task: ${taskTitle}`,
       link: `tasks.html?taskId=${taskId}`,
     });
   }

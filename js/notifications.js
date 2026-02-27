@@ -29,8 +29,8 @@ export async function getUserNotifications(userName, apartmentCode) {
   const snapshot = await getDocs(notificationsQuery);
   return snapshot.docs
     .map((notificationDoc) => ({
-      id: notificationDoc.id,
       ...(notificationDoc.data() || {}),
+      id: notificationDoc.id,
     }))
     .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
 }
@@ -72,7 +72,6 @@ export async function addNotificationForUser(userName, apartmentCode, notificati
   if (!userName || !apartmentCode || !notification) return;
   const notificationsRef = getNotificationsCollectionRef(apartmentCode);
   await addDoc(notificationsRef, {
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     userName,
     createdAt: Date.now(),
     read: false,
@@ -103,8 +102,8 @@ export function subscribeToUserNotifications(userName, apartmentCode, onChange, 
     (snapshot) => {
       const notifications = snapshot.docs
         .map((notificationDoc) => ({
-          id: notificationDoc.id,
           ...(notificationDoc.data() || {}),
+          id: notificationDoc.id,
         }))
         .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
 
