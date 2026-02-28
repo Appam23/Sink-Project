@@ -8,11 +8,17 @@ function isLocalDevHost() {
 
 function mapLoginError(error) {
   const code = error && error.code ? String(error.code) : '';
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return 'You appear to be offline. Reconnect to the internet and try again.';
+  }
   if (code.startsWith('auth/requests-from-referer-')) {
     return 'This local URL is blocked by Firebase Auth. Add localhost and 127.0.0.1 to Authentication > Settings > Authorized domains.';
   }
   if (code === 'auth/network-request-failed' && isLocalDevHost()) {
     return 'Cannot reach Firebase Auth locally. Start emulator with: firebase emulators:start --only auth';
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'Network error while logging in. Check your connection and try again.';
   }
   if (code === 'auth/user-not-found') return 'No account found for this email. Please sign up first.';
   if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') return 'Incorrect password.';
@@ -23,16 +29,35 @@ function mapLoginError(error) {
 
 function mapPasswordResetError(error) {
   const code = error && error.code ? String(error.code) : '';
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return 'You appear to be offline. Reconnect to the internet and try again.';
+  }
   if (code.startsWith('auth/requests-from-referer-')) {
     return 'This local URL is blocked by Firebase Auth. Add localhost and 127.0.0.1 to Authentication > Settings > Authorized domains.';
   }
   if (code === 'auth/network-request-failed' && isLocalDevHost()) {
     return 'Cannot reach Firebase Auth locally. Start emulator with: firebase emulators:start --only auth';
   }
+  if (code === 'auth/network-request-failed') {
+    return 'Network error while sending reset email. Check your connection and try again.';
+  }
   if (code === 'auth/invalid-email') return 'Please enter a valid email address first.';
   if (code === 'auth/missing-email') return 'Enter your email, then tap Forgot password.';
   if (code === 'auth/too-many-requests') return 'Too many attempts. Please try again later.';
   return error && error.message ? error.message : 'Unable to send reset email right now.';
+}
+
+async function withTimeout(promise, timeoutMs) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export function renderLoginForm(container, renderWelcomePageWithEvents, renderSignupForm) {
@@ -56,15 +81,24 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
   `;
   container.appendChild(form);
   form.querySelector('#back-btn').onclick = () => renderWelcomePageWithEvents();
+    let isSubmitting = false;
     form.onsubmit = async function(e) {
       e.preventDefault();
+      if (isSubmitting) return;
+
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
       const message = document.getElementById('login-message');
+      const submitBtn = document.getElementById('sub-login');
       if (!email || !password) {
         message.innerText = 'Please enter both email and password.';
         return;
       }
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Logging In...';
+      message.innerText = '';
 
       const normalizedEmail = email.toLowerCase();
       let currentUserName = normalizedEmail;
@@ -75,17 +109,20 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
         currentUserName = firebaseDisplayName || normalizedEmail;
       } catch (error) {
         message.innerText = mapLoginError(error);
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Login';
         return;
       }
 
       let membership = null;
       try {
-        membership = await findApartmentForUser(normalizedEmail);
+        membership = await withTimeout(findApartmentForUser(normalizedEmail), 7000);
         if (!membership && currentUserName && currentUserName !== normalizedEmail) {
-          membership = await findApartmentForUser(currentUserName);
+          membership = await withTimeout(findApartmentForUser(currentUserName), 7000);
           if (membership && membership.code) {
             try {
-              membership = await ensureMemberInApartment(membership.code, normalizedEmail);
+              membership = await withTimeout(ensureMemberInApartment(membership.code, normalizedEmail), 7000);
             } catch (_error) {
               // Keep existing membership context if alias update fails.
             }

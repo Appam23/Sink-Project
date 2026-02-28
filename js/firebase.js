@@ -132,7 +132,11 @@ export async function createFirebaseEmailUser(email, password, displayName = '')
   const auth = getInitializedAuth();
   const credentials = await createUserWithEmailAndPassword(auth, email, password);
   if (displayName && credentials && credentials.user) {
-    await updateProfile(credentials.user, { displayName: String(displayName).trim() });
+    try {
+      await updateProfile(credentials.user, { displayName: String(displayName).trim() });
+    } catch (error) {
+      console.warn('User created, but display name update failed:', error);
+    }
   }
   return credentials.user;
 }
