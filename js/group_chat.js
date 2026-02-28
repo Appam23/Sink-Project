@@ -32,6 +32,13 @@ const EMERGENCY_TARGET_IMAGE_DATA_URL_LENGTH = 120000;
 const CHAT_MESSAGE_LIMIT = 120;
 const CHAT_MAX_STORED_MESSAGES = 500;
 const CHAT_PRUNE_MAX_DELETES_PER_SEND = 50;
+const MESSAGE_REPLY_SWIPE_MIN_DISTANCE_PX = 72;
+const MESSAGE_REPLY_MAX_VERTICAL_DRIFT_PX = 64;
+const MESSAGE_REPLY_MAX_DURATION_MS = 900;
+const SWIPE_BACK_EDGE_PX = 42;
+const SWIPE_BACK_MIN_DISTANCE_PX = 90;
+const SWIPE_BACK_MAX_VERTICAL_DRIFT_PX = 70;
+const SWIPE_BACK_MAX_DURATION_MS = 700;
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -147,6 +154,8 @@ async function pruneChatMessagesIfNeeded(messagesCollectionRef) {
 async function renderGroupChatPage(container, userName = 'You', apartmentCode = null) {
   // Clear container
   container.innerHTML = '';
+  container.classList.remove('has-footer');
+  container.classList.add('group-chat-container');
 
   const { db, auth, error: firebaseInitError } = initializeFirebaseServices();
   const messagesCollectionRef = db && apartmentCode
@@ -164,11 +173,20 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   page.className = 'group-chat-page';
   page.innerHTML = `
     <div class="chat-header">
+      <button type="button" id="chat-back-btn" class="chat-back-btn" aria-label="Back to home">← Back</button>
       <h2>Group Chat</h2>
     </div>
     <div class="chat-box" id="chat-box"></div>
     <form class="chat-input-form" id="chat-input-form">
       <div class="chat-compose-box" id="chat-compose-box">
+        <div id="chat-reply-preview" class="chat-reply-preview hidden">
+          <div class="chat-reply-meta">
+            <span class="chat-reply-label">Replying to</span>
+            <span class="chat-reply-source" id="chat-reply-source"></span>
+            <span class="chat-reply-text" id="chat-reply-text"></span>
+          </div>
+          <button type="button" id="chat-reply-cancel" class="chat-reply-cancel" aria-label="Cancel reply">×</button>
+        </div>
         <div id="chat-attachment-preview" class="chat-attachment-preview hidden"></div>
         <input type="text" id="chat-message-input" placeholder="Type a message..." />
       </div>
@@ -181,15 +199,15 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
 
   container.appendChild(page);
 
-  // Footer navigation
-  import('./footer.js').then(mod => {
-    if (mod && typeof mod.attachFooter === 'function') mod.attachFooter(container);
-  });
-
   // Chat functionality
   const chatBox = page.querySelector('#chat-box');
+  const backBtn = page.querySelector('#chat-back-btn');
   const chatForm = page.querySelector('#chat-input-form');
   const messageInput = page.querySelector('#chat-message-input');
+  const replyPreview = page.querySelector('#chat-reply-preview');
+  const replySource = page.querySelector('#chat-reply-source');
+  const replyText = page.querySelector('#chat-reply-text');
+  const replyCancelBtn = page.querySelector('#chat-reply-cancel');
   const fileInput = page.querySelector('#chat-file-input');
   const attachFileBtn = page.querySelector('#attach-file-btn');
   const sendBtn = page.querySelector('#chat-send-btn');
@@ -202,6 +220,77 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   let pendingAttachmentData = null;
   let pendingAttachmentType = '';
   let pendingAttachmentName = '';
+  let pendingReply = null;
+  let swipeTracking = null;
+
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      window.location.href = 'home.html';
+    });
+  }
+
+  function resetSwipeTracking() {
+    swipeTracking = null;
+  }
+
+  function navigateBackToHome() {
+    window.location.href = 'home.html';
+  }
+
+  page.addEventListener('touchstart', (event) => {
+    if (!event.touches || event.touches.length !== 1) {
+      resetSwipeTracking();
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (touch.clientX > SWIPE_BACK_EDGE_PX) {
+      resetSwipeTracking();
+      return;
+    }
+
+    swipeTracking = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startTime: Date.now(),
+      triggered: false,
+    };
+  }, { passive: true });
+
+  page.addEventListener('touchmove', (event) => {
+    if (!swipeTracking || swipeTracking.triggered) return;
+    if (!event.touches || event.touches.length !== 1) {
+      resetSwipeTracking();
+      return;
+    }
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - swipeTracking.startX;
+    const deltaY = touch.clientY - swipeTracking.startY;
+
+    if (Math.abs(deltaY) > SWIPE_BACK_MAX_VERTICAL_DRIFT_PX) {
+      resetSwipeTracking();
+      return;
+    }
+
+    if (deltaX >= SWIPE_BACK_MIN_DISTANCE_PX) {
+      const elapsed = Date.now() - swipeTracking.startTime;
+      if (elapsed <= SWIPE_BACK_MAX_DURATION_MS) {
+        swipeTracking.triggered = true;
+        navigateBackToHome();
+      } else {
+        resetSwipeTracking();
+      }
+    }
+  }, { passive: true });
+
+  page.addEventListener('touchend', () => {
+    resetSwipeTracking();
+  }, { passive: true });
+
+  page.addEventListener('touchcancel', () => {
+    resetSwipeTracking();
+  }, { passive: true });
 
   const profiles = apartmentCode ? await getApartmentProfilesMap(apartmentCode) : {};
   const userProfile = profiles[userName] || {};
@@ -252,6 +341,42 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       activeMessageBubble = null;
     }
     activeMessageForMenu = null;
+  }
+
+  function summarizeReplyText(textValue, hasAttachment = false) {
+    const baseText = String(textValue || '').trim();
+    const compact = baseText.replace(/\s+/g, ' ');
+    if (compact) {
+      return compact.length > 80 ? `${compact.slice(0, 80)}…` : compact;
+    }
+    return hasAttachment ? 'Attachment' : 'Message';
+  }
+
+  function renderReplyComposerPreview() {
+    if (!replyPreview || !replySource || !replyText) return;
+    if (!pendingReply) {
+      replyPreview.classList.add('hidden');
+      replySource.textContent = '';
+      replyText.textContent = '';
+      return;
+    }
+
+    replyPreview.classList.remove('hidden');
+    replySource.textContent = pendingReply.senderLabel || formatFallbackName(pendingReply.sender);
+    replyText.textContent = summarizeReplyText(pendingReply.text, pendingReply.hasAttachment);
+  }
+
+  function setPendingReplyFromMessage(messageData, senderLabel) {
+    if (!messageData || !messageData.id) return;
+    pendingReply = {
+      id: String(messageData.id),
+      sender: String(messageData.sender || ''),
+      senderLabel: String(senderLabel || formatFallbackName(messageData.sender || '')),
+      text: String(messageData.text || ''),
+      hasAttachment: Boolean(messageData.attachmentData || messageData.attachmentUrl || messageData.file),
+    };
+    renderReplyComposerPreview();
+    if (messageInput) messageInput.focus();
   }
 
   async function editOwnMessage(messageData) {
@@ -371,6 +496,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       const isImageAttachment = Boolean(attachmentData) && attachmentType.startsWith('image/');
       const profileDisplayName = getProfileDisplayName(profiles[msg.sender]);
       const senderLabel = msg.senderDisplayName || profileDisplayName || formatFallbackName(msg.sender);
+      const replyContext = msg.replyTo && typeof msg.replyTo === 'object' ? msg.replyTo : null;
 
       const attachmentHtml = attachmentData
         ? (isImageAttachment
@@ -384,10 +510,71 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         <img src="${senderPic}" class="message-pic" />
         <div class="message-content">
           <span class="message-sender">${senderLabel}</span>
+          ${replyContext ? `<div class="message-reply-context"><span class="message-reply-sender"></span><p class="message-reply-text"></p></div>` : ''}
           ${msg.text ? `<p>${msg.text}</p>` : ''}
           ${attachmentHtml}
         </div>
       `;
+
+      if (replyContext) {
+        const replySenderElement = messageBubble.querySelector('.message-reply-sender');
+        const replyTextElement = messageBubble.querySelector('.message-reply-text');
+        const replySenderLabel = String(replyContext.senderLabel || '').trim() || formatFallbackName(replyContext.sender || '');
+        const replySummaryText = summarizeReplyText(replyContext.text, Boolean(replyContext.hasAttachment));
+        if (replySenderElement) replySenderElement.textContent = replySenderLabel;
+        if (replyTextElement) replyTextElement.textContent = replySummaryText;
+      }
+
+      let messageSwipeState = null;
+      messageBubble.addEventListener('touchstart', (event) => {
+        if (!event.touches || event.touches.length !== 1) {
+          messageSwipeState = null;
+          return;
+        }
+
+        const touch = event.touches[0];
+        messageSwipeState = {
+          startX: touch.clientX,
+          startY: touch.clientY,
+          startTime: Date.now(),
+          triggered: false,
+        };
+      }, { passive: true });
+
+      messageBubble.addEventListener('touchmove', (event) => {
+        if (!messageSwipeState || messageSwipeState.triggered) return;
+        if (!event.touches || event.touches.length !== 1) {
+          messageSwipeState = null;
+          return;
+        }
+
+        const touch = event.touches[0];
+        const deltaX = touch.clientX - messageSwipeState.startX;
+        const deltaY = touch.clientY - messageSwipeState.startY;
+
+        if (Math.abs(deltaY) > MESSAGE_REPLY_MAX_VERTICAL_DRIFT_PX) {
+          messageSwipeState = null;
+          return;
+        }
+
+        if (deltaX >= MESSAGE_REPLY_SWIPE_MIN_DISTANCE_PX) {
+          const elapsed = Date.now() - messageSwipeState.startTime;
+          if (elapsed <= MESSAGE_REPLY_MAX_DURATION_MS) {
+            messageSwipeState.triggered = true;
+            setPendingReplyFromMessage(msg, senderLabel);
+          } else {
+            messageSwipeState = null;
+          }
+        }
+      }, { passive: true });
+
+      messageBubble.addEventListener('touchend', () => {
+        messageSwipeState = null;
+      }, { passive: true });
+
+      messageBubble.addEventListener('touchcancel', () => {
+        messageSwipeState = null;
+      }, { passive: true });
 
       if (msg.sender === userName && msg.id) {
         const openOwnMessageActions = () => {
@@ -456,6 +643,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           attachmentUrl: data.attachmentUrl || null,
           attachmentType: String(data.attachmentType || ''),
           attachmentName: String(data.attachmentName || ''),
+          replyTo: data.replyTo && typeof data.replyTo === 'object' ? data.replyTo : null,
           createdAtValue: getMessageCreatedAtValue(data),
         };
       })
@@ -490,6 +678,15 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       attachmentPreview.classList.add('hidden');
     }
   }
+
+  if (replyCancelBtn) {
+    replyCancelBtn.addEventListener('click', () => {
+      pendingReply = null;
+      renderReplyComposerPreview();
+    });
+  }
+
+  renderReplyComposerPreview();
 
   function renderAttachmentPreview() {
     if (!attachmentPreview) return;
@@ -552,6 +749,15 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
     const attachmentName = pendingAttachmentName;
 
     if (text || attachmentData) {
+      const replyTo = pendingReply
+        ? {
+            id: pendingReply.id,
+            sender: pendingReply.sender,
+            senderLabel: pendingReply.senderLabel,
+            text: pendingReply.text,
+            hasAttachment: Boolean(pendingReply.hasAttachment),
+          }
+        : null;
       try {
         setUploadState(true, 'Saving message...');
         await addDoc(messagesCollectionRef, {
@@ -561,6 +767,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           attachmentData,
           attachmentType,
           attachmentName,
+          replyTo,
           createdAt: serverTimestamp(),
         });
         await pruneChatMessagesIfNeeded(messagesCollectionRef);
@@ -586,6 +793,8 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       setUploadState(false, '');
       messageInput.value = '';
       clearPendingAttachment(true);
+      pendingReply = null;
+      renderReplyComposerPreview();
     }
   });
 

@@ -100,6 +100,19 @@ function isFirestoreMessageSizeError(error) {
   return code === 'invalid-argument' || code === 'resource-exhausted';
 }
 
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Unable to load image.'));
+    image.src = dataUrl;
+  });
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 export async function renderProfilePage(container, userName = 'You', apartmentCode = null) {
   // Clear container
   container.innerHTML = '';
@@ -130,6 +143,22 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
       </div>
       
     </form>
+    <div id="profile-crop-modal" class="profile-crop-modal hidden" role="dialog" aria-modal="true" aria-label="Crop profile picture">
+      <div class="profile-crop-panel">
+        <h3>Crop Picture</h3>
+        <canvas id="profile-crop-canvas" class="profile-crop-canvas" width="280" height="280"></canvas>
+        <label for="profile-crop-zoom">Zoom</label>
+        <input type="range" id="profile-crop-zoom" min="100" max="260" value="100" step="1" />
+        <label for="profile-crop-pan-x">Move Left / Right</label>
+        <input type="range" id="profile-crop-pan-x" min="-100" max="100" value="0" step="1" />
+        <label for="profile-crop-pan-y">Move Up / Down</label>
+        <input type="range" id="profile-crop-pan-y" min="-100" max="100" value="0" step="1" />
+        <div class="profile-crop-actions">
+          <button type="button" id="profile-crop-cancel" class="profile-crop-btn secondary">Cancel</button>
+          <button type="button" id="profile-crop-apply" class="profile-crop-btn primary">Use Photo</button>
+        </div>
+      </div>
+    </div>
   `;
   container.appendChild(profileDiv);
 
@@ -137,6 +166,157 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
   const picInput = profileDiv.querySelector('#profile-pic-input');
   const picPreview = profileDiv.querySelector('#profile-pic-preview');
   const iconSpan = profileDiv.querySelector('#profile-pic-icon');
+  const cropModal = profileDiv.querySelector('#profile-crop-modal');
+  const cropCanvas = profileDiv.querySelector('#profile-crop-canvas');
+  const cropZoomInput = profileDiv.querySelector('#profile-crop-zoom');
+  const cropPanXInput = profileDiv.querySelector('#profile-crop-pan-x');
+  const cropPanYInput = profileDiv.querySelector('#profile-crop-pan-y');
+  const cropApplyBtn = profileDiv.querySelector('#profile-crop-apply');
+  const cropCancelBtn = profileDiv.querySelector('#profile-crop-cancel');
+  const cropCanvasContext = cropCanvas ? cropCanvas.getContext('2d') : null;
+  const cropState = {
+    image: null,
+    baseScale: 1,
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+  };
+
+  function getCropMetrics() {
+    if (!cropCanvas || !cropState.image) {
+      return { scale: 1, maxPanX: 0, maxPanY: 0, canvasSize: 0 };
+    }
+    const canvasSize = cropCanvas.width;
+    const scale = cropState.baseScale * cropState.zoom;
+    const drawnWidth = cropState.image.naturalWidth * scale;
+    const drawnHeight = cropState.image.naturalHeight * scale;
+    const maxPanX = Math.max(0, (drawnWidth - canvasSize) / 2);
+    const maxPanY = Math.max(0, (drawnHeight - canvasSize) / 2);
+    return { scale, maxPanX, maxPanY, canvasSize };
+  }
+
+  function syncPanSlidersFromState() {
+    if (!cropPanXInput || !cropPanYInput) return;
+    const { maxPanX, maxPanY } = getCropMetrics();
+
+    if (maxPanX <= 0) {
+      cropState.panX = 0;
+      cropPanXInput.value = '0';
+      cropPanXInput.disabled = true;
+    } else {
+      cropState.panX = clamp(cropState.panX, -maxPanX, maxPanX);
+      cropPanXInput.disabled = false;
+      cropPanXInput.value = String(Math.round((cropState.panX / maxPanX) * 100));
+    }
+
+    if (maxPanY <= 0) {
+      cropState.panY = 0;
+      cropPanYInput.value = '0';
+      cropPanYInput.disabled = true;
+    } else {
+      cropState.panY = clamp(cropState.panY, -maxPanY, maxPanY);
+      cropPanYInput.disabled = false;
+      cropPanYInput.value = String(Math.round((cropState.panY / maxPanY) * 100));
+    }
+  }
+
+  function updatePanStateFromSliders() {
+    const { maxPanX, maxPanY } = getCropMetrics();
+    if (cropPanXInput) {
+      const xPercent = Number(cropPanXInput.value || '0') / 100;
+      cropState.panX = maxPanX > 0 ? clamp(xPercent * maxPanX, -maxPanX, maxPanX) : 0;
+    }
+    if (cropPanYInput) {
+      const yPercent = Number(cropPanYInput.value || '0') / 100;
+      cropState.panY = maxPanY > 0 ? clamp(yPercent * maxPanY, -maxPanY, maxPanY) : 0;
+    }
+  }
+
+  function drawCropPreview() {
+    if (!cropCanvas || !cropCanvasContext || !cropState.image) return;
+    const { scale, maxPanX, maxPanY, canvasSize } = getCropMetrics();
+    const panX = clamp(cropState.panX, -maxPanX, maxPanX);
+    const panY = clamp(cropState.panY, -maxPanY, maxPanY);
+    cropState.panX = panX;
+    cropState.panY = panY;
+
+    cropCanvasContext.clearRect(0, 0, canvasSize, canvasSize);
+    cropCanvasContext.fillStyle = '#f0f4f4';
+    cropCanvasContext.fillRect(0, 0, canvasSize, canvasSize);
+
+    cropCanvasContext.save();
+    cropCanvasContext.translate((canvasSize / 2) + panX, (canvasSize / 2) + panY);
+    cropCanvasContext.scale(scale, scale);
+    cropCanvasContext.drawImage(
+      cropState.image,
+      -cropState.image.naturalWidth / 2,
+      -cropState.image.naturalHeight / 2
+    );
+    cropCanvasContext.restore();
+  }
+
+  async function openCropModal(dataUrl) {
+    if (!cropModal || !cropCanvas || !cropZoomInput || !cropCanvasContext) {
+      throw new Error('Crop controls unavailable.');
+    }
+
+    const image = await loadImageFromDataUrl(dataUrl);
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+    if (!width || !height) {
+      throw new Error('Invalid image dimensions.');
+    }
+
+    cropState.image = image;
+    cropState.baseScale = Math.max(cropCanvas.width / width, cropCanvas.height / height);
+    cropState.zoom = 1;
+    cropState.panX = 0;
+    cropState.panY = 0;
+    cropZoomInput.value = '100';
+
+    syncPanSlidersFromState();
+    drawCropPreview();
+    cropModal.classList.remove('hidden');
+  }
+
+  function closeCropModal() {
+    if (!cropModal) return;
+    cropModal.classList.add('hidden');
+    cropState.image = null;
+    if (picInput) picInput.value = '';
+  }
+
+  async function getCroppedDataUrl(outputSize = 512) {
+    if (!cropState.image || !cropCanvas) {
+      throw new Error('No image selected for crop.');
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Image crop is not supported on this device.');
+    }
+
+    const { scale, maxPanX, maxPanY } = getCropMetrics();
+    const panX = clamp(cropState.panX, -maxPanX, maxPanX);
+    const panY = clamp(cropState.panY, -maxPanY, maxPanY);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, outputSize, outputSize);
+    ctx.save();
+    ctx.translate((outputSize / 2) + ((panX / cropCanvas.width) * outputSize), (outputSize / 2) + ((panY / cropCanvas.height) * outputSize));
+    ctx.scale(scale * (outputSize / cropCanvas.width), scale * (outputSize / cropCanvas.height));
+    ctx.drawImage(
+      cropState.image,
+      -cropState.image.naturalWidth / 2,
+      -cropState.image.naturalHeight / 2
+    );
+    ctx.restore();
+
+    return canvas.toDataURL('image/jpeg', 0.9);
+  }
   if (picPreview) {
     picPreview.src = DEFAULT_PROFILE_PICTURE;
   }
@@ -230,16 +410,57 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
 
   // Profile picture upload/preview (picInput and picPreview declared above)
   if (picInput && picPreview) {
+    if (cropZoomInput) {
+      cropZoomInput.addEventListener('input', () => {
+        cropState.zoom = Number(cropZoomInput.value || '100') / 100;
+        syncPanSlidersFromState();
+        drawCropPreview();
+      });
+    }
+
+    if (cropPanXInput) {
+      cropPanXInput.addEventListener('input', () => {
+        updatePanStateFromSliders();
+        drawCropPreview();
+      });
+    }
+
+    if (cropPanYInput) {
+      cropPanYInput.addEventListener('input', () => {
+        updatePanStateFromSliders();
+        drawCropPreview();
+      });
+    }
+
+    if (cropCancelBtn) {
+      cropCancelBtn.addEventListener('click', () => {
+        closeCropModal();
+      });
+    }
+
+    if (cropApplyBtn) {
+      cropApplyBtn.addEventListener('click', async () => {
+        try {
+          let croppedImageData = await getCroppedDataUrl(512);
+          croppedImageData = await compressImageDataUrl(croppedImageData, 'image/jpeg');
+          picPreview.src = croppedImageData;
+          if (iconSpan) iconSpan.style.display = 'none';
+          closeCropModal();
+        } catch (_error) {
+          alert('Unable to crop this image. Please try another one.');
+        }
+      });
+    }
+
     picInput.addEventListener('change', async function (e) {
-      const file = e.target.files[0];
+      const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
       if (file) {
         try {
-          let imageData = await fileToDataUrl(file);
-          imageData = await compressImageDataUrl(imageData, file.type);
-          picPreview.src = imageData;
-          if (iconSpan) iconSpan.style.display = 'none';
+          const imageData = await fileToDataUrl(file);
+          await openCropModal(imageData);
         } catch (_error) {
           alert('Image could not be processed. Please try another image.');
+          if (picInput) picInput.value = '';
         }
       }
     });
