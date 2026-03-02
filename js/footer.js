@@ -1,5 +1,9 @@
 // footer.js
 export function attachFooter(container) {
+  if (container && container.classList) {
+    container.classList.add('has-footer');
+  }
+
   let footer = container.querySelector('.profile-footer');
   if (!footer) {
     footer = document.createElement('footer');

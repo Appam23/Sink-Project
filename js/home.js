@@ -1,7 +1,7 @@
 import { requireApartmentMembershipAsync } from './auth.js';
 import { clearUserNotifications, markAllNotificationsRead, subscribeToUserNotifications } from './notifications.js';
-import { deleteUserProfile, getApartmentProfilesMap } from './profiles.js';
-import { signOutFirebaseUser } from './firebase.js';
+import { deleteUserProfile, getApartmentProfilesMap, saveUserProfile } from './profiles.js';
+import { getFirebaseAuthCurrentUser, signOutFirebaseUser } from './firebase.js';
 import {
   deleteApartmentByOwner,
   getApartmentByCode,
@@ -26,6 +26,7 @@ async function deleteUserAccountData(userName, apartmentCode = null) {
 async function renderHomePage(container, userName = 'You', apartmentCode = null, apartmentData = null) {
   // Clear container
   container.innerHTML = '';
+  container.classList.add('home-container');
 
   const code = apartmentCode;
   let members = Array.isArray(apartmentData && apartmentData.members) ? [...apartmentData.members] : [];
@@ -107,6 +108,25 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   // Load current user's profile picture if available
   const profiles = code ? await getApartmentProfilesMap(code) : {};
   const myProfile = profiles[currentUser] || {};
+  const authUser = getFirebaseAuthCurrentUser();
+  const signupDisplayName = authUser && authUser.displayName ? String(authUser.displayName).trim() : '';
+
+  if (code && currentUser && signupDisplayName && !myProfile.firstName && !myProfile.lastName) {
+    const nameParts = signupDisplayName.split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || signupDisplayName;
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+    myProfile.firstName = firstName;
+    myProfile.lastName = lastName;
+    profiles[currentUser] = myProfile;
+
+    saveUserProfile(code, currentUser, {
+      firstName,
+      lastName,
+    }).catch((error) => {
+      console.warn('Unable to persist signup display name to profile:', error);
+    });
+  }
 
   const formatName = (value) => {
     const trimmed = (value || '').trim().toLowerCase();
@@ -118,7 +138,12 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     const first = formatName(profile.firstName);
     const last = formatName(profile.lastName);
     const full = `${first} ${last}`.trim();
-    return full || fallback;
+    if (full) return full;
+
+    const fallbackValue = String(fallback || '').trim();
+    if (!fallbackValue) return 'Roommate';
+    const base = fallbackValue.includes('@') ? fallbackValue.split('@')[0] : fallbackValue;
+    return formatName(base) || 'Roommate';
   };
 
   const getProfileValue = (value) => {
@@ -159,7 +184,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
 
   // Set username
   const usernameEl = page.querySelector('#home-username');
-  if (usernameEl) usernameEl.textContent = getDisplayName(myProfile, currentUser || userName);
+  if (usernameEl) usernameEl.textContent = getDisplayName(myProfile, signupDisplayName || currentUser || userName);
   const myPicEl = page.querySelector('#home-profile-pic');
   if (myPicEl) {
     myPicEl.src = myProfile.picture || DEFAULT_PROFILE_PICTURE;
@@ -318,9 +343,14 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
 
   if (clearNotificationsBtn) {
     clearNotificationsBtn.addEventListener('click', async () => {
-      await clearUserNotifications(currentUser, code);
-      notifications = [];
-      renderNotifications();
+      try {
+        await clearUserNotifications(currentUser, code);
+        notifications = [];
+        renderNotifications();
+      } catch (error) {
+        console.error('Unable to clear notifications:', error);
+        alert('Unable to clear notifications right now. Please try again.');
+      }
     });
   }
 
