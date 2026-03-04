@@ -1,10 +1,14 @@
 import { getApp, getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js';
 import {
+  browserLocalPersistence,
+  browserSessionPersistence,
   connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
+  inMemoryPersistence,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  setPersistence,
   signOut,
   signInWithEmailAndPassword,
   updateProfile,
@@ -26,6 +30,8 @@ let firestoreDb = null;
 let firebaseAuth = null;
 let initError = null;
 let emulatorsConnected = false;
+let authPersistenceConfigured = false;
+let authPersistencePromise = null;
 
 function shouldUseFirebaseEmulators() {
   if (typeof window === 'undefined') {
@@ -132,8 +138,44 @@ function getInitializedAuth() {
   return auth;
 }
 
+async function ensureAuthPersistence(auth) {
+  if (!auth) return;
+  if (authPersistenceConfigured) return;
+  if (authPersistencePromise) {
+    await authPersistencePromise;
+    return;
+  }
+
+  authPersistencePromise = (async () => {
+    const persistenceOptions = [
+      browserLocalPersistence,
+      browserSessionPersistence,
+      inMemoryPersistence,
+    ];
+
+    for (const persistence of persistenceOptions) {
+      try {
+        await setPersistence(auth, persistence);
+        authPersistenceConfigured = true;
+        return;
+      } catch {
+        // Try the next persistence strategy.
+      }
+    }
+
+    authPersistenceConfigured = true;
+  })();
+
+  try {
+    await authPersistencePromise;
+  } finally {
+    authPersistencePromise = null;
+  }
+}
+
 export async function createFirebaseEmailUser(email, password, displayName = '') {
   const auth = getInitializedAuth();
+  await ensureAuthPersistence(auth);
   const credentials = await createUserWithEmailAndPassword(auth, email, password);
   if (displayName && credentials && credentials.user) {
     try {
@@ -147,6 +189,7 @@ export async function createFirebaseEmailUser(email, password, displayName = '')
 
 export async function signInFirebaseEmailUser(email, password) {
   const auth = getInitializedAuth();
+  await ensureAuthPersistence(auth);
   const credentials = await signInWithEmailAndPassword(auth, email, password);
   return credentials.user;
 }
