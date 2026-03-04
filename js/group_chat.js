@@ -497,6 +497,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       const profileDisplayName = getProfileDisplayName(profiles[msg.sender]);
       const senderLabel = msg.senderDisplayName || profileDisplayName || formatFallbackName(msg.sender);
       const replyContext = msg.replyTo && typeof msg.replyTo === 'object' ? msg.replyTo : null;
+      const editedLabelHtml = msg.isEdited ? '<span class="message-edited">edited</span>' : '';
 
       const attachmentHtml = attachmentData
         ? (isImageAttachment
@@ -512,6 +513,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           <span class="message-sender">${senderLabel}</span>
           ${replyContext ? `<div class="message-reply-context"><span class="message-reply-sender"></span><p class="message-reply-text"></p></div>` : ''}
           ${msg.text ? `<p>${msg.text}</p>` : ''}
+          ${editedLabelHtml}
           ${attachmentHtml}
         </div>
       `;
@@ -644,6 +646,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           attachmentType: String(data.attachmentType || ''),
           attachmentName: String(data.attachmentName || ''),
           replyTo: data.replyTo && typeof data.replyTo === 'object' ? data.replyTo : null,
+          isEdited: Boolean(data.editedAt),
           createdAtValue: getMessageCreatedAtValue(data),
         };
       })
