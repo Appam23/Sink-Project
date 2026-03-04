@@ -45,9 +45,13 @@ function shouldUseFirebaseEmulators() {
     return false;
   }
 
-  const storedValue = window.localStorage.getItem('useFirebaseEmulators');
-  if (storedValue === 'true') return true;
-  if (storedValue === 'false') return false;
+  try {
+    const storedValue = window.localStorage.getItem('useFirebaseEmulators');
+    if (storedValue === 'true') return true;
+    if (storedValue === 'false') return false;
+  } catch {
+    // Some mobile/private browsing modes block storage access.
+  }
 
   return false;
 }
