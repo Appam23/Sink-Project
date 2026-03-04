@@ -21,7 +21,7 @@ export function attachFooter(container) {
       </button>
       <button class="footer-btn" id="footer-task" title="Task">
         <span class="footer-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2l4-4"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="#f5a623" stroke="#e2ded8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2l4-4"/></svg>
         </span>
       </button>
       <button class="footer-btn" id="footer-message" title="Message">

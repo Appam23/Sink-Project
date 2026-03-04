@@ -955,9 +955,10 @@ button:hover, .main-btn:hover {
     width: 100%;
     margin-top: 12px;
     margin-bottom: 120px;
+    background: #f5a623;
 }
 .task-column {
-    background: #fff;
+    background: #f5a623;
     padding: 10px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
@@ -1429,6 +1430,7 @@ button:hover, .main-btn:hover {
 .container.group-chat-container {
     padding: 0;
     overflow: hidden;
+    background: #b76cf4;
 }
 
 .group-chat-page {
@@ -1439,6 +1441,7 @@ button:hover, .main-btn:hover {
     flex: 1 1 auto;
     width: 100%;
     box-sizing: border-box;
+    background: #b76cf4;
 }
 
 .chat-header {
@@ -1448,16 +1451,16 @@ button:hover, .main-btn:hover {
     justify-content: center;
     min-height: 64px;
     padding: 10px 16px;
-    background: #fff;
-    color: #47d9ca;
-    border-bottom: 1px solid #e0e0e0;
+    background: #b76cf4;
+    color: #fff;
+    border-bottom: 1px solid #a97be7;
 }
 
 .chat-header h2 {
     margin: 0;
     font-size: 2rem;
     font-weight: 700;
-    color: #47d9ca;
+    color: #fff;
 }
 
 .chat-back-btn {
@@ -1520,12 +1523,12 @@ button:hover, .main-btn:hover {
 
 .message-bubble.sent {
     align-self: flex-end;
-    background: #d1f7f4;
+    background: #d6b3ff;
 }
 
 .message-bubble.received {
     align-self: flex-start;
-    background: #b2e0dc;
+    background: #e6d6fa;
 }
 
 .message-pic {
@@ -1608,8 +1611,8 @@ button:hover, .main-btn:hover {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    background: #edf8f7;
-    border-left: 3px solid #47d9ca;
+    background: #e6d6fa;
+    border-left: 3px solid #b76cf4;
     border-radius: 6px;
     padding: 6px 8px;
 }
@@ -1671,7 +1674,7 @@ button:hover, .main-btn:hover {
 .chat-input-form button {
     padding: 10px;
     border: none;
-    background: #47d9ca;
+    background: #b76cf4;
     color: white;
     border-radius: 5px;
     cursor: pointer;
@@ -1679,7 +1682,7 @@ button:hover, .main-btn:hover {
 }
 
 .chat-input-form button:hover {
-    background: #35c4b8;
+    background: #a97be7;
 }
 
 .chat-upload-status {
@@ -1726,7 +1729,7 @@ button:hover, .main-btn:hover {
     border: none;
     border-radius: 6px;
     padding: 6px 10px;
-    background: #47d9ca;
+    background: #b76cf4;
     color: #fff;
     font-size: 0.9rem;
     cursor: pointer;

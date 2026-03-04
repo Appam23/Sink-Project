@@ -27,7 +27,6 @@ function createPageStructure() {
 			<h3>First to join from your apartment?</h3>
 			<p>Responsible to create apartment code.</p>
 			<button type="button" class="main-btn" id="create-apartment-code">Create apartment code</button>
-			<button type="button" class="main-btn" id="continue-after-create">Continue</button>
 			<div class="message" id="created-code"></div>
 		</div>
 
@@ -68,50 +67,36 @@ function setupBackButton(page, userName) {
 
 function setupCreateCodeSection(page, container, userName) {
 	const createBtn = page.querySelector('#create-apartment-code');
-	const continueBtn = page.querySelector('#continue-after-create');
 	const createdCode = page.querySelector('#created-code');
-	// Hide Continue button initially
-	if (continueBtn) {
-		continueBtn.style.display = 'none';
-	}
 
-	  if (createBtn && createdCode && continueBtn) {
-		   createBtn.addEventListener('click', async () => {
-			   createBtn.disabled = true;
-			   let created = null;
-			   for (let attempt = 0; attempt < 8; attempt += 1) {
-				   const code = generateApartmentCode();
-				   try {
-					   await createApartment(code, userName);
-					   created = code;
-					   break;
-				   } catch (error) {
-					   if (!String(error && error.message || '').includes('already exists')) {
-						   createdCode.textContent = 'Unable to create apartment code right now. Please try again.';
-						   createBtn.disabled = false;
-						   return;
-					   }
-				   }
-			   }
-
-			   if (!created) {
-				   createdCode.textContent = 'Unable to create a unique code right now. Please try again.';
-				   createBtn.disabled = false;
-				   return;
-			   }
-
-			   createdCode.textContent = `Your apartment code: ${created}`;
-			   createBtn.style.display = 'none';
-			   continueBtn.style.display = '';
-		   });
-	}
-
-	if (continueBtn) {
-		continueBtn.addEventListener('click', () => {
-			const code = extractCodeFromMessage(createdCode.textContent);
-			if (code) {
-				window.location.href = 'home.html';
+	if (createBtn && createdCode) {
+		createBtn.addEventListener('click', async () => {
+			createBtn.disabled = true;
+			let created = null;
+			for (let attempt = 0; attempt < 8; attempt += 1) {
+				const code = generateApartmentCode();
+				try {
+					await createApartment(code, userName);
+					created = code;
+					break;
+				} catch (error) {
+					if (!String(error && error.message || '').includes('already exists')) {
+						createdCode.textContent = 'Unable to create apartment code right now. Please try again.';
+						createBtn.disabled = false;
+						return;
+					}
+				}
 			}
+
+			if (!created) {
+				createdCode.textContent = 'Unable to create a unique code right now. Please try again.';
+				createBtn.disabled = false;
+				return;
+			}
+
+			createdCode.textContent = `Your apartment code: ${created}`;
+			createBtn.style.display = 'none';
+			window.location.href = 'home.html';
 		});
 	}
 }
