@@ -5,7 +5,6 @@ import {
   connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
-  inMemoryPersistence,
   onAuthStateChanged,
   sendPasswordResetEmail,
   setPersistence,
@@ -43,15 +42,6 @@ function withTimeout(promise, timeoutMs) {
   return Promise.race([promise, timeoutPromise]).finally(() => {
     clearTimeout(timeoutId);
   });
-}
-
-function isLikelyMobileBrowser() {
-  if (typeof navigator === 'undefined') return false;
-  if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
-    return navigator.userAgentData.mobile;
-  }
-  const userAgent = String(navigator.userAgent || '');
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
 }
 
 function shouldUseFirebaseEmulators() {
@@ -168,9 +158,10 @@ async function ensureAuthPersistence(auth) {
   }
 
   authPersistencePromise = (async () => {
-    const persistenceOptions = isLikelyMobileBrowser()
-      ? [inMemoryPersistence, browserSessionPersistence, browserLocalPersistence]
-      : [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence];
+    const persistenceOptions = [
+      browserLocalPersistence,
+      browserSessionPersistence,
+    ];
 
     for (const persistence of persistenceOptions) {
       try {
@@ -182,7 +173,9 @@ async function ensureAuthPersistence(auth) {
       }
     }
 
-    authPersistenceConfigured = true;
+    const storageError = new Error('Secure browser storage is unavailable for authentication.');
+    storageError.code = 'auth/web-storage-unsupported';
+    throw storageError;
   })();
 
   try {
