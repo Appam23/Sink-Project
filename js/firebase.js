@@ -32,6 +32,27 @@ let initError = null;
 let emulatorsConnected = false;
 let authPersistenceConfigured = false;
 let authPersistencePromise = null;
+const AUTH_PERSISTENCE_TIMEOUT_MS = 2500;
+
+function withTimeout(promise, timeoutMs) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
+function isLikelyMobileBrowser() {
+  if (typeof navigator === 'undefined') return false;
+  if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+    return navigator.userAgentData.mobile;
+  }
+  const userAgent = String(navigator.userAgent || '');
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
+}
 
 function shouldUseFirebaseEmulators() {
   if (typeof window === 'undefined') {
@@ -147,19 +168,17 @@ async function ensureAuthPersistence(auth) {
   }
 
   authPersistencePromise = (async () => {
-    const persistenceOptions = [
-      browserLocalPersistence,
-      browserSessionPersistence,
-      inMemoryPersistence,
-    ];
+    const persistenceOptions = isLikelyMobileBrowser()
+      ? [inMemoryPersistence, browserSessionPersistence, browserLocalPersistence]
+      : [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence];
 
     for (const persistence of persistenceOptions) {
       try {
-        await setPersistence(auth, persistence);
+        await withTimeout(setPersistence(auth, persistence), AUTH_PERSISTENCE_TIMEOUT_MS);
         authPersistenceConfigured = true;
         return;
       } catch {
-        // Try the next persistence strategy.
+        continue;
       }
     }
 
