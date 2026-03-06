@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js';
 import {
+  inMemoryPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
   connectAuthEmulator,
@@ -31,6 +32,7 @@ let initError = null;
 let emulatorsConnected = false;
 let authPersistenceConfigured = false;
 let authPersistencePromise = null;
+let authPersistenceMode = 'unknown';
 const AUTH_PERSISTENCE_TIMEOUT_MS = 2500;
 
 function withTimeout(promise, timeoutMs) {
@@ -159,14 +161,16 @@ async function ensureAuthPersistence(auth) {
 
   authPersistencePromise = (async () => {
     const persistenceOptions = [
-      browserLocalPersistence,
-      browserSessionPersistence,
+      { mode: 'local', persistence: browserLocalPersistence },
+      { mode: 'session', persistence: browserSessionPersistence },
+      { mode: 'memory', persistence: inMemoryPersistence },
     ];
 
-    for (const persistence of persistenceOptions) {
+    for (const option of persistenceOptions) {
       try {
-        await withTimeout(setPersistence(auth, persistence), AUTH_PERSISTENCE_TIMEOUT_MS);
+        await withTimeout(setPersistence(auth, option.persistence), AUTH_PERSISTENCE_TIMEOUT_MS);
         authPersistenceConfigured = true;
+        authPersistenceMode = option.mode;
         return;
       } catch {
         continue;
@@ -183,6 +187,10 @@ async function ensureAuthPersistence(auth) {
   } finally {
     authPersistencePromise = null;
   }
+}
+
+export function getFirebaseAuthPersistenceMode() {
+  return authPersistenceMode;
 }
 
 export async function createFirebaseEmailUser(email, password, displayName = '') {
