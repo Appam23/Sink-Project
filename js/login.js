@@ -8,8 +8,15 @@ function isLocalDevHost() {
 
 function mapLoginError(error) {
   const code = error && error.code ? String(error.code) : '';
+  const message = error && error.message ? String(error.message) : '';
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return 'You appear to be offline. Reconnect to the internet and try again.';
+  }
+  if (code === 'auth/web-storage-unsupported') {
+    return 'This browser is blocking secure storage required for login. Disable private browsing mode or try a different mobile browser.';
+  }
+  if (message === 'timeout') {
+    return 'Login timed out. Check your connection and try again.';
   }
   if (code.startsWith('auth/requests-from-referer-')) {
     return 'This local URL is blocked by Firebase Auth. Add localhost and 127.0.0.1 to Authentication > Settings > Authorized domains.';
@@ -104,7 +111,7 @@ export function renderLoginForm(container, renderWelcomePageWithEvents, renderSi
       let currentUserName = normalizedEmail;
 
       try {
-        const firebaseUser = await signInFirebaseEmailUser(email, password);
+        const firebaseUser = await withTimeout(signInFirebaseEmailUser(email, password), 12000);
         const firebaseDisplayName = firebaseUser && firebaseUser.displayName ? String(firebaseUser.displayName).trim() : '';
         currentUserName = firebaseDisplayName || normalizedEmail;
       } catch (error) {

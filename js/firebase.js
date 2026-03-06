@@ -1,10 +1,14 @@
 import { getApp, getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js';
 import {
+  inMemoryPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
   connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  setPersistence,
   signOut,
   signInWithEmailAndPassword,
   updateProfile,
@@ -26,6 +30,21 @@ let firestoreDb = null;
 let firebaseAuth = null;
 let initError = null;
 let emulatorsConnected = false;
+let authPersistenceConfigured = false;
+let authPersistencePromise = null;
+let authPersistenceMode = 'unknown';
+const AUTH_PERSISTENCE_TIMEOUT_MS = 2500;
+
+function withTimeout(promise, timeoutMs) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
 
 function shouldUseFirebaseEmulators() {
   if (typeof window === 'undefined') {
@@ -45,9 +64,13 @@ function shouldUseFirebaseEmulators() {
     return false;
   }
 
-  const storedValue = window.localStorage.getItem('useFirebaseEmulators');
-  if (storedValue === 'true') return true;
-  if (storedValue === 'false') return false;
+  try {
+    const storedValue = window.localStorage.getItem('useFirebaseEmulators');
+    if (storedValue === 'true') return true;
+    if (storedValue === 'false') return false;
+  } catch {
+    // Some mobile/private browsing modes block storage access.
+  }
 
   return false;
 }
@@ -128,8 +151,51 @@ function getInitializedAuth() {
   return auth;
 }
 
+async function ensureAuthPersistence(auth) {
+  if (!auth) return;
+  if (authPersistenceConfigured) return;
+  if (authPersistencePromise) {
+    await authPersistencePromise;
+    return;
+  }
+
+  authPersistencePromise = (async () => {
+    const persistenceOptions = [
+      { mode: 'local', persistence: browserLocalPersistence },
+      { mode: 'session', persistence: browserSessionPersistence },
+      { mode: 'memory', persistence: inMemoryPersistence },
+    ];
+
+    for (const option of persistenceOptions) {
+      try {
+        await withTimeout(setPersistence(auth, option.persistence), AUTH_PERSISTENCE_TIMEOUT_MS);
+        authPersistenceConfigured = true;
+        authPersistenceMode = option.mode;
+        return;
+      } catch {
+        continue;
+      }
+    }
+
+    const storageError = new Error('Secure browser storage is unavailable for authentication.');
+    storageError.code = 'auth/web-storage-unsupported';
+    throw storageError;
+  })();
+
+  try {
+    await authPersistencePromise;
+  } finally {
+    authPersistencePromise = null;
+  }
+}
+
+export function getFirebaseAuthPersistenceMode() {
+  return authPersistenceMode;
+}
+
 export async function createFirebaseEmailUser(email, password, displayName = '') {
   const auth = getInitializedAuth();
+  await ensureAuthPersistence(auth);
   const credentials = await createUserWithEmailAndPassword(auth, email, password);
   if (displayName && credentials && credentials.user) {
     try {
@@ -143,6 +209,7 @@ export async function createFirebaseEmailUser(email, password, displayName = '')
 
 export async function signInFirebaseEmailUser(email, password) {
   const auth = getInitializedAuth();
+  await ensureAuthPersistence(auth);
   const credentials = await signInWithEmailAndPassword(auth, email, password);
   return credentials.user;
 }
