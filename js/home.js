@@ -79,6 +79,37 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
       <div id="roommates-list" class="roommates-list"></div>
     </div>
 
+    <div id="home-onboarding-modal" class="home-onboarding-modal hidden" role="dialog" aria-modal="true" aria-label="Bunk Buddies walkthrough">
+      <div class="home-onboarding-panel">
+        <div class="home-onboarding-topbar">
+          <div id="home-onboarding-progress" class="home-onboarding-progress">1 / 4</div>
+          <button type="button" id="home-onboarding-skip" class="home-onboarding-skip">Skip</button>
+        </div>
+
+        <div class="home-onboarding-slide">
+          <h2 id="home-onboarding-title">Welcome to Bunk Buddies!</h2>
+          <p id="home-onboarding-subtitle" class="home-onboarding-intro"></p>
+
+          <div class="home-onboarding-spotlight">
+            <div class="home-onboarding-spotlight-text">
+              <h4 id="home-onboarding-feature-title"></h4>
+              <p id="home-onboarding-feature-description"></p>
+            </div>
+            <div id="home-onboarding-feature-icon" class="home-onboarding-feature-icon" aria-hidden="true"></div>
+          </div>
+
+          <div id="home-onboarding-visual" class="home-onboarding-visual"></div>
+        </div>
+
+        <div id="home-onboarding-dots" class="home-onboarding-dots" aria-label="Walkthrough progress"></div>
+
+        <div class="home-onboarding-actions">
+          <button type="button" id="home-onboarding-back" class="home-onboarding-btn secondary">Back</button>
+          <button type="button" id="home-onboarding-next" class="home-onboarding-btn primary">Next</button>
+        </div>
+      </div>
+    </div>
+
     <button id="logout-btn" class="quit-btn logout-bottom-right">Log Out</button>
 
     <button id="settings-btn" class="settings-floating-btn" aria-label="Open settings">
@@ -88,6 +119,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     </button>
 
     <div id="settings-popup" class="settings-popup hidden" role="dialog" aria-label="Apartment settings">
+      <button id="replay-onboarding-btn" class="settings-action-btn">Replay Walkthrough</button>
       <button id="leave-apartment-btn" class="settings-action-btn ${canLeaveApartment ? '' : 'hidden'}">Leave Apartment</button>
       <button id="delete-apartment-btn" class="settings-action-btn quit-btn ${canDeleteApartment ? '' : 'hidden'}">Delete Apartment</button>
       <button id="delete-account-btn" class="settings-action-btn quit-btn">Delete Account</button>
@@ -243,6 +275,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
 
   const settingsBtn = page.querySelector('#settings-btn');
   const settingsPopup = page.querySelector('#settings-popup');
+  const replayOnboardingBtn = page.querySelector('#replay-onboarding-btn');
   const leaveApartmentBtn = page.querySelector('#leave-apartment-btn');
   const deleteApartmentBtn = page.querySelector('#delete-apartment-btn');
   const deleteAccountBtn = page.querySelector('#delete-account-btn');
@@ -251,9 +284,160 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   const notificationsList = page.querySelector('#notifications-list');
   const notificationsCount = page.querySelector('#notifications-count');
   const clearNotificationsBtn = page.querySelector('#clear-notifications-btn');
+  const onboardingModal = page.querySelector('#home-onboarding-modal');
+  const onboardingTitle = page.querySelector('#home-onboarding-title');
+  const onboardingSubtitle = page.querySelector('#home-onboarding-subtitle');
+  const onboardingFeatureTitle = page.querySelector('#home-onboarding-feature-title');
+  const onboardingFeatureDescription = page.querySelector('#home-onboarding-feature-description');
+  const onboardingFeatureIcon = page.querySelector('#home-onboarding-feature-icon');
+  const onboardingVisual = page.querySelector('#home-onboarding-visual');
+  const onboardingProgress = page.querySelector('#home-onboarding-progress');
+  const onboardingDots = page.querySelector('#home-onboarding-dots');
+  const onboardingSkipBtn = page.querySelector('#home-onboarding-skip');
+  const onboardingBackBtn = page.querySelector('#home-onboarding-back');
+  const onboardingNextBtn = page.querySelector('#home-onboarding-next');
 
   let notifications = [];
   let unsubscribeNotifications = null;
+  let onboardingIndex = 0;
+  let onboardingMarkedSeen = !!myProfile.onboardingSeen;
+
+  const getOnboardingIconMarkup = (key) => {
+    if (key === 'calendar') {
+      return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7ed957" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+    }
+    if (key === 'tasks') {
+      return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" fill="#f5a623" stroke="#f5a623"/><path d="M9 12l2 2l4-4" stroke="#ffffff"/></svg>';
+    }
+    if (key === 'chat') {
+      return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#b76cf4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+    }
+    return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#47d9ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>';
+  };
+
+  const onboardingSlides = [
+    {
+      title: 'Welcome to Bunk Buddies!',
+      subtitle: 'Bunk Buddies helps roommates stay organized with one shared place for planning, tasks, and communication.',
+      featureTitle: 'What You Can Do',
+      featureDescription: 'Use the quick walkthrough to see the three main features your apartment will use daily.',
+      icon: 'welcome',
+      visualHtml: `
+        <div class="onboarding-mock-overview">
+          <div class="onboarding-pill">Plan together</div>
+          <div class="onboarding-pill">Share tasks</div>
+          <div class="onboarding-pill">Stay in sync</div>
+        </div>
+      `,
+    },
+    {
+      title: 'Calendar Feature',
+      subtitle: 'Track events, schedules, and important dates so everyone stays on the same page.',
+      featureTitle: 'Calendar',
+      featureDescription: 'Add shared events and quickly see what is happening this week.',
+      icon: 'calendar',
+      visualHtml: `
+        <div class="onboarding-mock-calendar">
+          <div class="onboarding-mock-calendar-head"></div>
+          <div class="onboarding-mock-calendar-grid">
+            <span></span><span class="active"></span><span></span><span></span>
+            <span></span><span></span><span class="active"></span><span></span>
+          </div>
+        </div>
+      `,
+    },
+    {
+      title: 'Task Feature',
+      subtitle: 'Split chores and to-dos clearly, so everyone knows what to do next.',
+      featureTitle: 'Tasks',
+      featureDescription: 'Mark work as done and keep a visible list of what still needs attention.',
+      icon: 'tasks',
+      visualHtml: `
+        <div class="onboarding-mock-tasks">
+          <div class="task-row done"><span class="task-check"></span><span>Take out trash</span></div>
+          <div class="task-row"><span class="task-check"></span><span>Kitchen cleanup</span></div>
+          <div class="task-row"><span class="task-check"></span><span>Restock supplies</span></div>
+        </div>
+      `,
+    },
+    {
+      title: 'Chat Feature',
+      subtitle: 'Use group chat for quick updates, reminders, and apartment coordination.',
+      featureTitle: 'Chat',
+      featureDescription: 'Drop a fast message when plans change or when you need a roommate response.',
+      icon: 'chat',
+      visualHtml: `
+        <div class="onboarding-mock-chat">
+          <div class="bubble left">Movie night at 8?</div>
+          <div class="bubble right">Works for me.</div>
+          <div class="bubble left">Awesome, see you then.</div>
+        </div>
+      `,
+    },
+  ];
+
+  function closeOnboarding() {
+    if (onboardingModal) {
+      onboardingModal.classList.add('hidden');
+    }
+  }
+
+  async function markOnboardingSeenOnFirstOpen() {
+    if (onboardingMarkedSeen || !code || !currentUser) return;
+    onboardingMarkedSeen = true;
+    myProfile.onboardingSeen = true;
+
+    try {
+      await saveUserProfile(code, currentUser, { onboardingSeen: true });
+    } catch (error) {
+      console.warn('Unable to save onboarding state:', error);
+    }
+  }
+
+  function renderOnboardingDots() {
+    if (!onboardingDots) return;
+    onboardingDots.innerHTML = '';
+
+    onboardingSlides.forEach((_, idx) => {
+      const dot = document.createElement('span');
+      dot.className = `home-onboarding-dot${idx === onboardingIndex ? ' active' : ''}`;
+      onboardingDots.appendChild(dot);
+    });
+  }
+
+  function renderOnboardingSlide() {
+    const slide = onboardingSlides[onboardingIndex];
+    if (!slide) return;
+
+    if (onboardingTitle) onboardingTitle.textContent = slide.title;
+    if (onboardingSubtitle) onboardingSubtitle.textContent = slide.subtitle;
+    if (onboardingFeatureTitle) onboardingFeatureTitle.textContent = slide.featureTitle;
+    if (onboardingFeatureDescription) onboardingFeatureDescription.textContent = slide.featureDescription;
+    if (onboardingFeatureIcon) onboardingFeatureIcon.innerHTML = getOnboardingIconMarkup(slide.icon);
+    if (onboardingVisual) onboardingVisual.innerHTML = slide.visualHtml;
+    if (onboardingProgress) onboardingProgress.textContent = `${onboardingIndex + 1} / ${onboardingSlides.length}`;
+
+    if (onboardingBackBtn) {
+      onboardingBackBtn.disabled = onboardingIndex === 0;
+    }
+
+    if (onboardingNextBtn) {
+      onboardingNextBtn.textContent = onboardingIndex === onboardingSlides.length - 1 ? 'Finish' : 'Next';
+    }
+
+    renderOnboardingDots();
+  }
+
+  function openOnboarding({ isReplay = false } = {}) {
+    if (!onboardingModal) return;
+    onboardingIndex = 0;
+    renderOnboardingSlide();
+    onboardingModal.classList.remove('hidden');
+
+    if (!isReplay) {
+      markOnboardingSeenOnFirstOpen();
+    }
+  }
 
   function renderNotifications() {
     if (!notificationsList || !notificationsCount) return;
@@ -417,6 +601,44 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
       }
       window.location.href = 'index.html';
     });
+  }
+
+  if (replayOnboardingBtn) {
+    replayOnboardingBtn.addEventListener('click', () => {
+      if (settingsPopup) settingsPopup.classList.add('hidden');
+      openOnboarding({ isReplay: true });
+    });
+  }
+
+  if (onboardingSkipBtn) {
+    onboardingSkipBtn.addEventListener('click', () => {
+      closeOnboarding();
+    });
+  }
+
+  if (onboardingBackBtn) {
+    onboardingBackBtn.addEventListener('click', () => {
+      if (onboardingIndex <= 0) return;
+      onboardingIndex -= 1;
+      renderOnboardingSlide();
+    });
+  }
+
+  if (onboardingNextBtn) {
+    onboardingNextBtn.addEventListener('click', () => {
+      const isLastSlide = onboardingIndex >= onboardingSlides.length - 1;
+      if (isLastSlide) {
+        closeOnboarding();
+        return;
+      }
+      onboardingIndex += 1;
+      renderOnboardingSlide();
+    });
+  }
+
+  const shouldShowOnboarding = !myProfile.onboardingSeen;
+  if (shouldShowOnboarding) {
+    openOnboarding();
   }
 }
 
