@@ -169,26 +169,26 @@ async function renderTasksPage(container, access) {
   page.innerHTML = `
     <div class="tasks-header">
       <h2>Tasks / Chores</h2>
-      <div class="tasks-subtitle">Apartment: ${apartmentCode || 'No apartment'}</div>
+      <button type="button" id="tasks-filter-toggle" class="tasks-filter-btn" aria-pressed="false">My tasks only: Off</button>
     </div>
     <div class="tasks-body">
       <div class="task-column" data-room="Kitchen">
-        <div class="task-column-header"><h3>Kitchen</h3></div>
+        <div class="task-column-header"><h3>Kitchen</h3><span class="task-count" id="kitchen-count">0</span></div>
         <div class="task-list" id="kitchen-list"></div>
       </div>
 
       <div class="task-column" data-room="Living Room">
-        <div class="task-column-header"><h3>Living Room</h3></div>
+        <div class="task-column-header"><h3>Living Room</h3><span class="task-count" id="livingroom-count">0</span></div>
         <div class="task-list" id="livingroom-list"></div>
       </div>
 
       <div class="task-column" data-room="Bathroom">
-        <div class="task-column-header"><h3>Bathroom</h3></div>
+        <div class="task-column-header"><h3>Bathroom</h3><span class="task-count" id="bathroom-count">0</span></div>
         <div class="task-list" id="bathroom-list"></div>
       </div>
 
       <div class="task-column" data-room="Other">
-        <div class="task-column-header"><h3>Other</h3></div>
+        <div class="task-column-header"><h3>Other</h3><span class="task-count" id="other-count">0</span></div>
         <div class="task-list" id="other-list"></div>
       </div>
     </div>
@@ -295,6 +295,13 @@ async function renderTasksPage(container, access) {
 
   let tasks = [];
   let unsubscribeTasks = null;
+  let showMyTasksOnly = false;
+
+  function isTaskVisibleForCurrentFilter(task) {
+    if (!showMyTasksOnly) return true;
+    const assignee = String(task && task.assignee ? task.assignee : '').trim();
+    return assignee === currentUser;
+  }
 
   function getCreatedAtValue(taskData) {
     const createdAt = taskData && taskData.createdAt ? taskData.createdAt : null;
@@ -381,15 +388,33 @@ async function renderTasksPage(container, access) {
       'Other': page.querySelector('#other-list'),
     };
 
+    const roomCounters = {
+      'Kitchen': page.querySelector('#kitchen-count'),
+      'Living Room': page.querySelector('#livingroom-count'),
+      'Bathroom': page.querySelector('#bathroom-count'),
+      'Other': page.querySelector('#other-count'),
+    };
+
+    const roomCounts = {
+      'Kitchen': 0,
+      'Living Room': 0,
+      'Bathroom': 0,
+      'Other': 0,
+    };
+
     Object.values(rooms).forEach(r => r.innerHTML = '');
 
     tasks.forEach(task => {
+      if (!isTaskVisibleForCurrentFilter(task)) return;
+
       const row = document.createElement('div');
       row.className = 'event-row task-row';
       row.setAttribute('data-task-id', String(task.id));
       const thumbHtml = task.image ? `<img class="task-thumb" src="${task.image}" alt="thumb"/>` : '';
-      const viewBtnHtml = task.image ? `<button class="view-btn">View</button>` : '';
+      const viewBtnHtml = task.image ? `<button class="view-btn task-view-btn">View</button>` : '';
       const assigneeLabel = task.assigneeName || getAssigneeDisplayName(task.assignee);
+      const safeTime = String(task.time || '').trim();
+      const taskTime = safeTime ? safeTime : 'No time';
       row.innerHTML = `
         <div class="event-date"><div class="due-label">Due by</div><div class="due-date">${task.date}</div></div>
         <div class="event-details">
@@ -398,8 +423,8 @@ async function renderTasksPage(container, access) {
           <div class="event-location">${task.room} • ${assigneeLabel}</div>
         </div>
         <div class="event-time">
-          ${task.time}
-          <div style="margin-top:8px;">${viewBtnHtml} <button class="complete-btn">Complete</button></div>
+          <div class="task-time-value">${taskTime}</div>
+          <div class="task-actions">${viewBtnHtml}<button class="complete-btn">Complete</button></div>
         </div>
       `;
 
@@ -416,6 +441,15 @@ async function renderTasksPage(container, access) {
 
       const list = rooms[task.room] || rooms['Other'];
       list.appendChild(row);
+
+      const normalizedRoom = Object.prototype.hasOwnProperty.call(roomCounts, task.room) ? task.room : 'Other';
+      roomCounts[normalizedRoom] += 1;
+    });
+
+    Object.keys(roomCounters).forEach((roomName) => {
+      const countEl = roomCounters[roomName];
+      if (!countEl) return;
+      countEl.textContent = String(roomCounts[roomName] || 0);
     });
 
     // For each room, if no tasks were appended, show a helpful message
@@ -424,7 +458,7 @@ async function renderTasksPage(container, access) {
       if (!list.hasChildNodes()) {
         const msg = document.createElement('div');
         msg.className = 'no-tasks';
-        msg.textContent = 'no tasks yet';
+        msg.textContent = 'No tasks yet';
         list.appendChild(msg);
       }
     });
@@ -480,6 +514,18 @@ async function renderTasksPage(container, access) {
 
   // Add button (single floating) — open modal when clicked
   let lastRoom = 'Other';
+  const filterToggleBtn = page.querySelector('#tasks-filter-toggle');
+
+  if (filterToggleBtn) {
+    filterToggleBtn.addEventListener('click', () => {
+      showMyTasksOnly = !showMyTasksOnly;
+      filterToggleBtn.classList.toggle('active', showMyTasksOnly);
+      filterToggleBtn.setAttribute('aria-pressed', showMyTasksOnly ? 'true' : 'false');
+      filterToggleBtn.textContent = showMyTasksOnly ? 'My tasks only: On' : 'My tasks only: Off';
+      renderTasks();
+    });
+  }
+
   const addBtn = page.querySelector('#add-task-btn');
   if (addBtn) {
     addBtn.addEventListener('click', () => {

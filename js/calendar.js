@@ -1,8 +1,11 @@
 import { requireApartmentMembershipAsync } from './auth.js';
 import { addNotificationForUser } from './notifications.js';
 import { initializeFirebaseServices } from './firebase.js';
+import { getApartmentProfilesMap } from './profiles.js';
 import {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -11,9 +14,11 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const EVENTS_QUERY_LIMIT = 180;
+const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
 
 async function notifyRoommatesAboutNewEvent(eventName, actorUser, apartmentCode, members = []) {
   if (!apartmentCode || !Array.isArray(members)) return;
@@ -46,6 +51,49 @@ function getActorDisplayName(actorUser) {
   const fallback = String(actorUser || '').trim();
   const base = fallback.includes('@') ? fallback.split('@')[0] : fallback;
   return toDisplayName(base);
+}
+
+function isIsoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
+}
+
+function toDisplayDateFromIso(isoDate) {
+  if (!isIsoDate(isoDate)) return '';
+  const [, monthText, dayText] = String(isoDate).split('-');
+  return `${monthText}/${dayText}`;
+}
+
+function toDisplayTimeFrom24h(time24) {
+  const value = String(time24 || '').trim();
+  if (!/^\d{2}:\d{2}$/.test(value)) return '';
+  const parsed = new Date(`2000-01-01T${value}`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function toDateInputFromEvent(eventData = {}) {
+  if (isIsoDate(eventData.dateISO)) return String(eventData.dateISO);
+
+  const dayKey = String(eventData.date || '').trim();
+  const match = dayKey.match(/^(\d{2})\/(\d{2})$/);
+  if (!match) return '';
+
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  if (!Number.isFinite(month) || !Number.isFinite(day)) return '';
+  if (month < 1 || month > 12 || day < 1 || day > 31) return '';
+
+  const currentYear = new Date().getFullYear();
+  return `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function toTimeInputFromEvent(eventData = {}) {
+  const normalized = String(eventData.time24 || '').trim();
+  if (/^\d{2}:\d{2}$/.test(normalized)) return normalized;
+
+  const parsed = new Date(`2000-01-01 ${String(eventData.time || '').trim()}`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
 }
 
 async function renderCalendarPage(container, apartmentCode, currentUser, apartmentMembers = []) {
@@ -94,12 +142,50 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
   let events = [];
   let unsubscribeEvents = null;
   let currentView = 'List';
+  let profilesByUser = {};
 
   const now = new Date();
   const todayKey = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
   const todayMonthNumber = now.getMonth() + 1;
   let selectedDayKey = todayKey;
   let selectedMonthAnchor = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  try {
+    profilesByUser = await getApartmentProfilesMap(apartmentCode);
+  } catch (error) {
+    profilesByUser = {};
+    console.warn('Unable to load attendee profile photos:', error);
+  }
+
+  function getProfilePictureForUser(userId) {
+    const profile = profilesByUser && userId ? profilesByUser[userId] : null;
+    const image = profile && profile.picture ? String(profile.picture).trim() : '';
+    return image || DEFAULT_PROFILE_PICTURE;
+  }
+
+  function getDisplayNameForUser(userId) {
+    const profile = profilesByUser && userId ? profilesByUser[userId] : null;
+    const first = profile && profile.firstName ? String(profile.firstName).trim() : '';
+    const last = profile && profile.lastName ? String(profile.lastName).trim() : '';
+    const fullName = `${first} ${last}`.trim();
+    if (fullName) return fullName;
+
+    const fallback = String(userId || '').trim();
+    if (!fallback) return 'Roommate';
+    const base = fallback.includes('@') ? fallback.split('@')[0] : fallback;
+    return toDisplayName(base);
+  }
+
+  function getAttendeeUsers(eventData) {
+    if (!eventData || !Array.isArray(eventData.attendees)) return [];
+    const unique = new Set();
+    eventData.attendees.forEach((userId) => {
+      const normalized = String(userId || '').trim();
+      if (!normalized) return;
+      unique.add(normalized);
+    });
+    return Array.from(unique);
+  }
 
   function getCreatedAtValue(eventData) {
     const createdAt = eventData && eventData.createdAt ? eventData.createdAt : null;
@@ -154,6 +240,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
 
     listContainer.innerHTML = '';
     eventItems.forEach((event) => {
+      const canManageEvent = !!event.createdBy && event.createdBy === currentUser;
       const eventRow = document.createElement('div');
       eventRow.className = 'event-row';
       eventRow.innerHTML = `
@@ -161,12 +248,131 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
         <div class="event-details">
           <div class="event-name">${event.name}</div>
           <div class="event-location">${event.room}</div>
+          <div class="event-attendees" aria-label="Attendees"></div>
+          <div class="event-attendees-popover hidden" role="status" aria-live="polite"></div>
         </div>
         <div class="event-time">
           <div>${event.time}</div>
-          <button type="button" class="delete-event-btn">Delete</button>
+          <button type="button" class="attend-event-btn">Attend</button>
+          ${canManageEvent ? `
+            <div class="event-actions">
+              <button type="button" class="edit-event-btn">Edit</button>
+              <button type="button" class="delete-event-btn">Delete</button>
+            </div>
+          ` : ''}
         </div>
       `;
+
+      const attendeeUsers = getAttendeeUsers(event);
+      const attendeeDisplayNames = attendeeUsers.map((userId) => getDisplayNameForUser(userId));
+      const attendeesContainer = eventRow.querySelector('.event-attendees');
+      const attendeePopover = eventRow.querySelector('.event-attendees-popover');
+
+      const hideAllPopovers = () => {
+        const rows = listContainer.querySelectorAll('.event-attendees-popover');
+        rows.forEach((el) => el.classList.add('hidden'));
+      };
+
+      const togglePopover = () => {
+        if (!attendeePopover || attendeeDisplayNames.length === 0) return;
+        const wasHidden = attendeePopover.classList.contains('hidden');
+        hideAllPopovers();
+        attendeePopover.textContent = `Going: ${attendeeDisplayNames.join(', ')}`;
+        if (wasHidden) {
+          attendeePopover.classList.remove('hidden');
+        }
+      };
+
+      if (attendeesContainer && attendeesContainer.dataset.popoverBound !== 'true') {
+        attendeesContainer.dataset.popoverBound = 'true';
+        attendeesContainer.addEventListener('click', (eventClick) => {
+          eventClick.stopPropagation();
+        });
+      }
+
+      if (listContainer && listContainer.dataset.popoverDismissBound !== 'true') {
+        listContainer.dataset.popoverDismissBound = 'true';
+        listContainer.addEventListener('click', () => {
+          hideAllPopovers();
+        });
+      }
+
+      if (attendeesContainer) {
+        attendeesContainer.innerHTML = '';
+        if (attendeeUsers.length === 0) {
+          const emptyText = document.createElement('span');
+          emptyText.className = 'event-attendees-empty';
+          emptyText.textContent = 'No one attending yet';
+          attendeesContainer.appendChild(emptyText);
+        } else {
+          const visibleAttendees = attendeeUsers.slice(0, 4);
+          visibleAttendees.forEach((attendeeUser) => {
+            const avatarButton = document.createElement('button');
+            avatarButton.type = 'button';
+            avatarButton.className = 'event-attendee-avatar-btn';
+            avatarButton.setAttribute('aria-label', 'Show attendee names');
+
+            const avatar = document.createElement('img');
+            avatar.className = 'event-attendee-avatar';
+            avatar.src = getProfilePictureForUser(attendeeUser);
+            avatar.alt = 'Attending user';
+            avatar.title = getDisplayNameForUser(attendeeUser);
+            avatarButton.appendChild(avatar);
+            avatarButton.addEventListener('click', (eventClick) => {
+              eventClick.stopPropagation();
+              togglePopover();
+            });
+
+            attendeesContainer.appendChild(avatarButton);
+          });
+
+          const remainingCount = attendeeUsers.length - visibleAttendees.length;
+          if (remainingCount > 0) {
+            const more = document.createElement('button');
+            more.type = 'button';
+            more.className = 'event-attendees-more';
+            more.textContent = `+${remainingCount}`;
+            more.title = `${remainingCount} more attending`;
+            more.addEventListener('click', (eventClick) => {
+              eventClick.stopPropagation();
+              togglePopover();
+            });
+            attendeesContainer.appendChild(more);
+          }
+        }
+      }
+
+      const attendBtn = eventRow.querySelector('.attend-event-btn');
+      if (attendBtn) {
+        const isAttending = attendeeUsers.includes(currentUser);
+        attendBtn.textContent = isAttending ? 'Leave' : 'Attend';
+        attendBtn.title = isAttending ? 'Tap to stop attending this event' : 'Tap to attend this event';
+        if (isAttending) {
+          attendBtn.classList.add('active');
+        }
+
+        attendBtn.addEventListener('click', async () => {
+          attendBtn.disabled = true;
+          try {
+            await updateDoc(doc(eventsCollectionRef, event.id), {
+              attendees: isAttending ? arrayRemove(currentUser) : arrayUnion(currentUser),
+              updatedAt: serverTimestamp(),
+            });
+          } catch (error) {
+            console.error('Unable to update attendance:', error);
+            alert('Unable to update attendance right now. Please try again.');
+          } finally {
+            attendBtn.disabled = false;
+          }
+        });
+      }
+
+      const editBtn = eventRow.querySelector('.edit-event-btn');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          showEventModal(container, eventsCollectionRef, currentUser, null, apartmentCode, apartmentMembers, event);
+        });
+      }
 
       const deleteBtn = eventRow.querySelector('.delete-event-btn');
       if (deleteBtn) {
@@ -397,6 +603,10 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
           date: String(data.date || ''),
           time: String(data.time || ''),
           room: String(data.room || ''),
+          createdBy: String(data.createdBy || ''),
+          dateISO: String(data.dateISO || ''),
+          time24: String(data.time24 || ''),
+          attendees: Array.isArray(data.attendees) ? data.attendees : [],
           createdAtValue: getCreatedAtValue(data),
         };
       })
@@ -445,7 +655,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
   const addBtn = page.querySelector('#add-event-btn');
   if (addBtn) {
     addBtn.addEventListener('click', () => {
-      showAddEventModal(container, eventsCollectionRef, currentUser, null, apartmentCode, apartmentMembers);
+      showEventModal(container, eventsCollectionRef, currentUser, null, apartmentCode, apartmentMembers, null);
     });
   }
 
@@ -469,35 +679,52 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-function showAddEventModal(container, eventsCollectionRef, currentUser, onSaved, apartmentCode = null, apartmentMembers = []) {
+function showEventModal(
+  container,
+  eventsCollectionRef,
+  currentUser,
+  onSaved,
+  apartmentCode = null,
+  apartmentMembers = [],
+  eventToEdit = null
+) {
+  const isEditMode = !!(eventToEdit && eventToEdit.id);
+  const selectedRoom = String(eventToEdit && eventToEdit.room ? eventToEdit.room : '');
+  const knownRooms = ['Kitchen', 'Living Room', 'Bathroom'];
+  const usesCustomRoom = !!selectedRoom && !knownRooms.includes(selectedRoom);
+  const initialRoomChoice = usesCustomRoom ? 'Custom' : selectedRoom;
+
+  const initialDateValue = toDateInputFromEvent(eventToEdit || {});
+  const initialTimeValue = toTimeInputFromEvent(eventToEdit || {});
+
   const modal = document.createElement('div');
   modal.className = 'event-modal';
   modal.innerHTML = `
     <div class="event-modal-content">
       <button id="close-modal" class="close-modal">&times;</button>
-      <h3>Add Event</h3>
+      <h3>${isEditMode ? 'Edit Event' : 'Add Event'}</h3>
       <form id="event-form">
         <label>Event Name:</label>
-        <input type="text" id="event-name" placeholder="Event name" required />
+        <input type="text" id="event-name" placeholder="Event name" value="${String(eventToEdit && eventToEdit.name ? eventToEdit.name : '').replace(/"/g, '&quot;')}" required />
         
         <label>Date:</label>
-        <input type="date" id="event-date" required />
+        <input type="date" id="event-date" value="${initialDateValue}" required />
         
         <label>Time:</label>
-        <input type="time" id="event-time" required />
+        <input type="time" id="event-time" value="${initialTimeValue}" required />
         
         <label>Room:</label>
         <select id="event-room" required>
           <option value="">Select a room</option>
-          <option value="Kitchen">Kitchen</option>
-          <option value="Living Room">Living Room</option>
-          <option value="Bathroom">Bathroom</option>
-          <option value="Custom">Custom</option>
+          <option value="Kitchen" ${initialRoomChoice === 'Kitchen' ? 'selected' : ''}>Kitchen</option>
+          <option value="Living Room" ${initialRoomChoice === 'Living Room' ? 'selected' : ''}>Living Room</option>
+          <option value="Bathroom" ${initialRoomChoice === 'Bathroom' ? 'selected' : ''}>Bathroom</option>
+          <option value="Custom" ${initialRoomChoice === 'Custom' ? 'selected' : ''}>Custom</option>
         </select>
         
-        <input type="text" id="event-custom-room" placeholder="Enter custom room name" style="display:none;" />
+        <input type="text" id="event-custom-room" placeholder="Enter custom room name" value="${usesCustomRoom ? selectedRoom.replace(/"/g, '&quot;') : ''}" style="display:${initialRoomChoice === 'Custom' ? 'block' : 'none'};" ${initialRoomChoice === 'Custom' ? 'required' : ''} />
         
-        <button type="submit" class="main-btn">Add Event</button>
+        <button type="submit" class="main-btn">${isEditMode ? 'Save Changes' : 'Add Event'}</button>
       </form>
     </div>
   `;
@@ -532,49 +759,70 @@ function showAddEventModal(container, eventsCollectionRef, currentUser, onSaved,
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
-      const name = document.getElementById('event-name').value.trim();
-      const date = document.getElementById('event-date').value;
-      const time = document.getElementById('event-time').value;
-      const room = document.getElementById('event-room').value;
-      const customRoom = document.getElementById('event-custom-room').value.trim();
+
+      const nameInput = modal.querySelector('#event-name');
+      const dateInput = modal.querySelector('#event-date');
+      const timeInput = modal.querySelector('#event-time');
+      const roomInput = modal.querySelector('#event-room');
+      const customRoomInputEl = modal.querySelector('#event-custom-room');
+
+      const name = nameInput ? nameInput.value.trim() : '';
+      const date = dateInput ? dateInput.value : '';
+      const time = timeInput ? timeInput.value : '';
+      const room = roomInput ? roomInput.value : '';
+      const customRoom = customRoomInputEl ? customRoomInputEl.value.trim() : '';
       
       if (!name || !date || !time || !room) {
         alert('Please fill in all fields.');
         return;
       }
+
+      if (room === 'Custom' && !customRoom) {
+        alert('Please enter a custom room name.');
+        return;
+      }
       
       const finalRoom = room === 'Custom' ? customRoom : room;
-      
-      // Format date for display (MM/DD)
-      const dateObj = new Date(date);
-      const displayDate = (dateObj.getMonth() + 1).toString().padStart(2, '0') + '/' + dateObj.getDate().toString().padStart(2, '0');
-      
-      // Format time for display (HH:MM AM/PM)
-      const timeObj = new Date(`2000-01-01T${time}`);
-      const displayTime = timeObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      
+      const displayDate = toDisplayDateFromIso(date);
+      const displayTime = toDisplayTimeFrom24h(time);
+
+      if (!displayDate || !displayTime) {
+        alert('Please provide a valid date and time.');
+        return;
+      }
+
       const newEvent = {
-        name: name,
+        name,
         date: displayDate,
         time: displayTime,
-        room: finalRoom
+        room: finalRoom,
+        dateISO: date,
+        time24: time,
       };
 
       try {
-        await addDoc(eventsCollectionRef, {
-          ...newEvent,
-          createdBy: currentUser,
-          createdAt: serverTimestamp(),
-        });
-        await notifyRoommatesAboutNewEvent(newEvent.name, getActorDisplayName(currentUser), apartmentCode, apartmentMembers);
+        if (isEditMode && eventToEdit && eventToEdit.id) {
+          await updateDoc(doc(eventsCollectionRef, eventToEdit.id), {
+            ...newEvent,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          await addDoc(eventsCollectionRef, {
+            ...newEvent,
+            createdBy: currentUser,
+            attendees: [],
+            createdAt: serverTimestamp(),
+          });
+          await notifyRoommatesAboutNewEvent(newEvent.name, getActorDisplayName(currentUser), apartmentCode, apartmentMembers);
+        }
+
         modal.remove();
         if (typeof onSaved === 'function') {
           await onSaved();
         }
       } catch (error) {
-        console.error('Unable to add event:', error);
-        alert('Unable to add event right now. Please try again.');
+        console.error(`Unable to ${isEditMode ? 'edit' : 'add'} event:`, error);
+        alert(`Unable to ${isEditMode ? 'save changes' : 'add event'} right now. Please try again.`);
       }
     });
   }
