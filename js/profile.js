@@ -147,12 +147,7 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
       <div class="profile-crop-panel">
         <h3>Crop Picture</h3>
         <canvas id="profile-crop-canvas" class="profile-crop-canvas" width="280" height="280"></canvas>
-        <label for="profile-crop-zoom">Zoom</label>
-        <input type="range" id="profile-crop-zoom" min="100" max="260" value="100" step="1" />
-        <label for="profile-crop-pan-x">Move Left / Right</label>
-        <input type="range" id="profile-crop-pan-x" min="-100" max="100" value="0" step="1" />
-        <label for="profile-crop-pan-y">Move Up / Down</label>
-        <input type="range" id="profile-crop-pan-y" min="-100" max="100" value="0" step="1" />
+        <p class="profile-crop-hint">Pinch to zoom and drag with one finger to position your photo.</p>
         <div class="profile-crop-actions">
           <button type="button" id="profile-crop-cancel" class="profile-crop-btn secondary">Cancel</button>
           <button type="button" id="profile-crop-apply" class="profile-crop-btn primary">Use Photo</button>
@@ -168,18 +163,29 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
   const iconSpan = profileDiv.querySelector('#profile-pic-icon');
   const cropModal = profileDiv.querySelector('#profile-crop-modal');
   const cropCanvas = profileDiv.querySelector('#profile-crop-canvas');
-  const cropZoomInput = profileDiv.querySelector('#profile-crop-zoom');
-  const cropPanXInput = profileDiv.querySelector('#profile-crop-pan-x');
-  const cropPanYInput = profileDiv.querySelector('#profile-crop-pan-y');
   const cropApplyBtn = profileDiv.querySelector('#profile-crop-apply');
   const cropCancelBtn = profileDiv.querySelector('#profile-crop-cancel');
   const cropCanvasContext = cropCanvas ? cropCanvas.getContext('2d') : null;
+  const MIN_CROP_ZOOM = 1;
+  const MAX_CROP_ZOOM = 3.2;
   const cropState = {
     image: null,
     baseScale: 1,
     zoom: 1,
     panX: 0,
     panY: 0,
+  };
+  const activePointers = new Map();
+  const dragState = {
+    pointerId: null,
+    lastX: 0,
+    lastY: 0,
+  };
+  const pinchState = {
+    lastCenterX: 0,
+    lastCenterY: 0,
+    lastDistance: 0,
+    active: false,
   };
 
   function getCropMetrics() {
@@ -195,57 +201,23 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
     return { scale, maxPanX, maxPanY, canvasSize };
   }
 
-  function syncPanSlidersFromState() {
-    if (!cropPanXInput || !cropPanYInput) return;
+  function clampPanWithinBounds() {
     const { maxPanX, maxPanY } = getCropMetrics();
-
-    if (maxPanX <= 0) {
-      cropState.panX = 0;
-      cropPanXInput.value = '0';
-      cropPanXInput.disabled = true;
-    } else {
-      cropState.panX = clamp(cropState.panX, -maxPanX, maxPanX);
-      cropPanXInput.disabled = false;
-      cropPanXInput.value = String(Math.round((cropState.panX / maxPanX) * 100));
-    }
-
-    if (maxPanY <= 0) {
-      cropState.panY = 0;
-      cropPanYInput.value = '0';
-      cropPanYInput.disabled = true;
-    } else {
-      cropState.panY = clamp(cropState.panY, -maxPanY, maxPanY);
-      cropPanYInput.disabled = false;
-      cropPanYInput.value = String(Math.round((cropState.panY / maxPanY) * 100));
-    }
-  }
-
-  function updatePanStateFromSliders() {
-    const { maxPanX, maxPanY } = getCropMetrics();
-    if (cropPanXInput) {
-      const xPercent = Number(cropPanXInput.value || '0') / 100;
-      cropState.panX = maxPanX > 0 ? clamp(xPercent * maxPanX, -maxPanX, maxPanX) : 0;
-    }
-    if (cropPanYInput) {
-      const yPercent = Number(cropPanYInput.value || '0') / 100;
-      cropState.panY = maxPanY > 0 ? clamp(yPercent * maxPanY, -maxPanY, maxPanY) : 0;
-    }
+    cropState.panX = maxPanX > 0 ? clamp(cropState.panX, -maxPanX, maxPanX) : 0;
+    cropState.panY = maxPanY > 0 ? clamp(cropState.panY, -maxPanY, maxPanY) : 0;
   }
 
   function drawCropPreview() {
     if (!cropCanvas || !cropCanvasContext || !cropState.image) return;
-    const { scale, maxPanX, maxPanY, canvasSize } = getCropMetrics();
-    const panX = clamp(cropState.panX, -maxPanX, maxPanX);
-    const panY = clamp(cropState.panY, -maxPanY, maxPanY);
-    cropState.panX = panX;
-    cropState.panY = panY;
+    clampPanWithinBounds();
+    const { scale, canvasSize } = getCropMetrics();
 
     cropCanvasContext.clearRect(0, 0, canvasSize, canvasSize);
     cropCanvasContext.fillStyle = '#f0f4f4';
     cropCanvasContext.fillRect(0, 0, canvasSize, canvasSize);
 
     cropCanvasContext.save();
-    cropCanvasContext.translate((canvasSize / 2) + panX, (canvasSize / 2) + panY);
+    cropCanvasContext.translate((canvasSize / 2) + cropState.panX, (canvasSize / 2) + cropState.panY);
     cropCanvasContext.scale(scale, scale);
     cropCanvasContext.drawImage(
       cropState.image,
@@ -255,8 +227,148 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
     cropCanvasContext.restore();
   }
 
+  function getCanvasPointFromClient(clientX, clientY) {
+    if (!cropCanvas) return { x: 0, y: 0 };
+    const rect = cropCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      return { x: cropCanvas.width / 2, y: cropCanvas.height / 2 };
+    }
+    const x = ((clientX - rect.left) / rect.width) * cropCanvas.width;
+    const y = ((clientY - rect.top) / rect.height) * cropCanvas.height;
+    return { x, y };
+  }
+
+  function getPointerDistanceAndCenter() {
+    const points = Array.from(activePointers.values());
+    if (points.length < 2) {
+      return { distance: 0, centerX: 0, centerY: 0 };
+    }
+    const p1 = points[0];
+    const p2 = points[1];
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    return {
+      distance: Math.hypot(dx, dy),
+      centerX: (p1.x + p2.x) / 2,
+      centerY: (p1.y + p2.y) / 2,
+    };
+  }
+
+  function applyZoomAroundPoint(targetZoom, focalX, focalY) {
+    const nextZoom = clamp(targetZoom, MIN_CROP_ZOOM, MAX_CROP_ZOOM);
+    const prevScale = cropState.baseScale * cropState.zoom;
+    const nextScale = cropState.baseScale * nextZoom;
+
+    if (!prevScale || !Number.isFinite(prevScale) || !Number.isFinite(nextScale)) {
+      return;
+    }
+
+    const canvasCenterX = cropCanvas ? cropCanvas.width / 2 : 0;
+    const canvasCenterY = cropCanvas ? cropCanvas.height / 2 : 0;
+    const relativeX = focalX - canvasCenterX;
+    const relativeY = focalY - canvasCenterY;
+    const ratio = nextScale / prevScale;
+
+    cropState.panX = ((1 - ratio) * relativeX) + (ratio * cropState.panX);
+    cropState.panY = ((1 - ratio) * relativeY) + (ratio * cropState.panY);
+    cropState.zoom = nextZoom;
+    clampPanWithinBounds();
+  }
+
+  function onCropPointerDown(event) {
+    if (!cropCanvas || !cropState.image) return;
+    if (typeof event.button === 'number' && event.button !== 0) return;
+
+    const point = getCanvasPointFromClient(event.clientX, event.clientY);
+    activePointers.set(event.pointerId, point);
+
+    try {
+      cropCanvas.setPointerCapture(event.pointerId);
+    } catch {
+      // Ignore browsers that do not support pointer capture.
+    }
+
+    if (activePointers.size === 1) {
+      dragState.pointerId = event.pointerId;
+      dragState.lastX = point.x;
+      dragState.lastY = point.y;
+      pinchState.active = false;
+    } else if (activePointers.size >= 2) {
+      const pinchMetrics = getPointerDistanceAndCenter();
+      pinchState.lastDistance = pinchMetrics.distance;
+      pinchState.lastCenterX = pinchMetrics.centerX;
+      pinchState.lastCenterY = pinchMetrics.centerY;
+      pinchState.active = pinchMetrics.distance > 0;
+      dragState.pointerId = null;
+    }
+
+    event.preventDefault();
+  }
+
+  function onCropPointerMove(event) {
+    if (!cropCanvas || !cropState.image) return;
+    if (!activePointers.has(event.pointerId)) return;
+
+    const point = getCanvasPointFromClient(event.clientX, event.clientY);
+    activePointers.set(event.pointerId, point);
+
+    if (activePointers.size >= 2) {
+      const pinchMetrics = getPointerDistanceAndCenter();
+      if (pinchState.active && pinchState.lastDistance > 0 && pinchMetrics.distance > 0) {
+        const zoomRatio = pinchMetrics.distance / pinchState.lastDistance;
+        const proposedZoom = cropState.zoom * zoomRatio;
+        applyZoomAroundPoint(proposedZoom, pinchMetrics.centerX, pinchMetrics.centerY);
+        cropState.panX += pinchMetrics.centerX - pinchState.lastCenterX;
+        cropState.panY += pinchMetrics.centerY - pinchState.lastCenterY;
+        clampPanWithinBounds();
+        drawCropPreview();
+      }
+
+      pinchState.lastDistance = pinchMetrics.distance;
+      pinchState.lastCenterX = pinchMetrics.centerX;
+      pinchState.lastCenterY = pinchMetrics.centerY;
+      pinchState.active = pinchMetrics.distance > 0;
+      event.preventDefault();
+      return;
+    }
+
+    if (dragState.pointerId === event.pointerId) {
+      cropState.panX += point.x - dragState.lastX;
+      cropState.panY += point.y - dragState.lastY;
+      dragState.lastX = point.x;
+      dragState.lastY = point.y;
+      clampPanWithinBounds();
+      drawCropPreview();
+      event.preventDefault();
+    }
+  }
+
+  function onCropPointerUpOrCancel(event) {
+    if (!activePointers.has(event.pointerId)) return;
+
+    activePointers.delete(event.pointerId);
+    if (dragState.pointerId === event.pointerId) {
+      dragState.pointerId = null;
+    }
+
+    if (activePointers.size === 1) {
+      const remaining = Array.from(activePointers.entries())[0];
+      if (remaining) {
+        dragState.pointerId = remaining[0];
+        dragState.lastX = remaining[1].x;
+        dragState.lastY = remaining[1].y;
+      }
+      pinchState.active = false;
+    } else {
+      pinchState.active = false;
+      if (activePointers.size === 0) {
+        dragState.pointerId = null;
+      }
+    }
+  }
+
   async function openCropModal(dataUrl) {
-    if (!cropModal || !cropCanvas || !cropZoomInput || !cropCanvasContext) {
+    if (!cropModal || !cropCanvas || !cropCanvasContext) {
       throw new Error('Crop controls unavailable.');
     }
 
@@ -269,12 +381,12 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
 
     cropState.image = image;
     cropState.baseScale = Math.max(cropCanvas.width / width, cropCanvas.height / height);
-    cropState.zoom = 1;
+    cropState.zoom = MIN_CROP_ZOOM;
     cropState.panX = 0;
     cropState.panY = 0;
-    cropZoomInput.value = '100';
-
-    syncPanSlidersFromState();
+    activePointers.clear();
+    dragState.pointerId = null;
+    pinchState.active = false;
     drawCropPreview();
     cropModal.classList.remove('hidden');
   }
@@ -283,6 +395,9 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
     if (!cropModal) return;
     cropModal.classList.add('hidden');
     cropState.image = null;
+    activePointers.clear();
+    dragState.pointerId = null;
+    pinchState.active = false;
     if (picInput) picInput.value = '';
   }
 
@@ -299,14 +414,13 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
       throw new Error('Image crop is not supported on this device.');
     }
 
-    const { scale, maxPanX, maxPanY } = getCropMetrics();
-    const panX = clamp(cropState.panX, -maxPanX, maxPanX);
-    const panY = clamp(cropState.panY, -maxPanY, maxPanY);
+    const { scale } = getCropMetrics();
+    clampPanWithinBounds();
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, outputSize, outputSize);
     ctx.save();
-    ctx.translate((outputSize / 2) + ((panX / cropCanvas.width) * outputSize), (outputSize / 2) + ((panY / cropCanvas.height) * outputSize));
+    ctx.translate((outputSize / 2) + ((cropState.panX / cropCanvas.width) * outputSize), (outputSize / 2) + ((cropState.panY / cropCanvas.height) * outputSize));
     ctx.scale(scale * (outputSize / cropCanvas.width), scale * (outputSize / cropCanvas.height));
     ctx.drawImage(
       cropState.image,
@@ -410,26 +524,12 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
 
   // Profile picture upload/preview (picInput and picPreview declared above)
   if (picInput && picPreview) {
-    if (cropZoomInput) {
-      cropZoomInput.addEventListener('input', () => {
-        cropState.zoom = Number(cropZoomInput.value || '100') / 100;
-        syncPanSlidersFromState();
-        drawCropPreview();
-      });
-    }
-
-    if (cropPanXInput) {
-      cropPanXInput.addEventListener('input', () => {
-        updatePanStateFromSliders();
-        drawCropPreview();
-      });
-    }
-
-    if (cropPanYInput) {
-      cropPanYInput.addEventListener('input', () => {
-        updatePanStateFromSliders();
-        drawCropPreview();
-      });
+    if (cropCanvas) {
+      cropCanvas.addEventListener('pointerdown', onCropPointerDown);
+      cropCanvas.addEventListener('pointermove', onCropPointerMove);
+      cropCanvas.addEventListener('pointerup', onCropPointerUpOrCancel);
+      cropCanvas.addEventListener('pointercancel', onCropPointerUpOrCancel);
+      cropCanvas.addEventListener('pointerleave', onCropPointerUpOrCancel);
     }
 
     if (cropCancelBtn) {
