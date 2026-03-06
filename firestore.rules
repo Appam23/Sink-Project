@@ -54,6 +54,19 @@ service cloud.firestore {
         && request.resource.data.code == apartmentDoc(apartmentCode).code;
     }
 
+    function eventCreatedByCurrentUser() {
+      return resource.data.createdBy == currentUserId();
+    }
+
+    function eventCreatorUnchanged() {
+      return request.resource.data.createdBy == resource.data.createdBy;
+    }
+
+    function isAttendanceOnlyEventUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(['attendees', 'updatedAt'])
+        && request.resource.data.attendees is list;
+    }
+
     match /apartments/{apartmentCode} {
       allow read: if isSignedIn();
       allow create: if isCreatingOwnApartment(apartmentCode);
@@ -74,7 +87,16 @@ service cloud.firestore {
     }
 
     match /apartments/{apartmentCode}/events/{eventId} {
-      allow read, write: if isApartmentMember(apartmentCode);
+      allow read: if isApartmentMember(apartmentCode);
+      allow create: if isApartmentMember(apartmentCode)
+        && request.resource.data.createdBy == currentUserId();
+      allow update: if isApartmentMember(apartmentCode)
+        && (
+          (eventCreatedByCurrentUser() && eventCreatorUnchanged())
+          || isAttendanceOnlyEventUpdate()
+        );
+      allow delete: if isApartmentMember(apartmentCode)
+        && eventCreatedByCurrentUser();
     }
 
     match /apartments/{apartmentCode}/tasks/{taskId} {
