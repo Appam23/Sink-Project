@@ -1004,6 +1004,11 @@ body {
     background: #35c4b8;
 }
 
+.settings-action-btn:disabled {
+    background: #b8c6c5;
+    cursor: not-allowed;
+}
+
 .main-btn.small {
     padding: 6px 10px;
     font-size: 0.9em;
