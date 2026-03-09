@@ -15,6 +15,9 @@ function mapLoginError(error) {
   if (code === 'auth/web-storage-unsupported') {
     return 'This browser is blocking secure storage required for login. Disable private browsing mode or try a different mobile browser.';
   }
+  if (code === 'auth/operation-not-supported-in-this-environment') {
+    return 'This browser is blocking authentication in the current privacy mode. Disable private browsing mode and try again.';
+  }
   if (message === 'timeout') {
     return 'Login timed out. Check your connection and try again.';
   }

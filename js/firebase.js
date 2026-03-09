@@ -34,6 +34,7 @@ let authPersistenceConfigured = false;
 let authPersistencePromise = null;
 let authPersistenceMode = 'unknown';
 const AUTH_PERSISTENCE_TIMEOUT_MS = 2500;
+const AUTH_PERSISTENCE_RETRY_TIMEOUT_MS = 8000;
 
 function withTimeout(promise, timeoutMs) {
   let timeoutId;
@@ -168,13 +169,24 @@ async function ensureAuthPersistence(auth) {
 
     for (const option of persistenceOptions) {
       try {
-        await withTimeout(setPersistence(auth, option.persistence), AUTH_PERSISTENCE_TIMEOUT_MS);
+        await withTimeout(setPersistence(auth, option.persistence), AUTH_PERSISTENCE_RETRY_TIMEOUT_MS);
         authPersistenceConfigured = true;
         authPersistenceMode = option.mode;
         return;
       } catch {
         continue;
       }
+    }
+
+    // Last-chance fallback: Safari private mode and strict privacy settings can
+    // intermittently fail storage-backed persistence, but in-memory may still work.
+    try {
+      await setPersistence(auth, inMemoryPersistence);
+      authPersistenceConfigured = true;
+      authPersistenceMode = 'memory';
+      return;
+    } catch {
+      // Continue to explicit storage error below.
     }
 
     const storageError = new Error('Secure browser storage is unavailable for authentication.');
