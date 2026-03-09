@@ -3,6 +3,16 @@ import { clearUserNotifications, markAllNotificationsRead, subscribeToUserNotifi
 import { deleteUserProfile, getApartmentProfilesMap, saveUserProfile } from './profiles.js';
 import { getFirebaseAuthCurrentUser, signOutFirebaseUser } from './firebase.js';
 import {
+  clearAppBadgeCount,
+  disablePushNotifications,
+  enablePushNotifications,
+  getNotificationsPreference,
+  getPushAvailability,
+  getResolvedVapidKey,
+  initializePushMessaging,
+  syncAppBadgeCount,
+} from './push_notifications.js';
+import {
   deleteApartmentByOwner,
   getApartmentByCode,
   leaveApartment,
@@ -119,6 +129,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     </button>
 
     <div id="settings-popup" class="settings-popup hidden" role="dialog" aria-label="Apartment settings">
+      <button id="notifications-toggle-btn" class="settings-action-btn">Notifications: Off</button>
       <button id="replay-onboarding-btn" class="settings-action-btn">Replay Walkthrough</button>
       <button id="leave-apartment-btn" class="settings-action-btn ${canLeaveApartment ? '' : 'hidden'}">Leave Apartment</button>
       <button id="delete-apartment-btn" class="settings-action-btn quit-btn ${canDeleteApartment ? '' : 'hidden'}">Delete Apartment</button>
@@ -275,6 +286,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
 
   const settingsBtn = page.querySelector('#settings-btn');
   const settingsPopup = page.querySelector('#settings-popup');
+  const notificationsToggleBtn = page.querySelector('#notifications-toggle-btn');
   const replayOnboardingBtn = page.querySelector('#replay-onboarding-btn');
   const leaveApartmentBtn = page.querySelector('#leave-apartment-btn');
   const deleteApartmentBtn = page.querySelector('#delete-apartment-btn');
@@ -301,6 +313,64 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   let unsubscribeNotifications = null;
   let onboardingIndex = 0;
   let onboardingMarkedSeen = !!myProfile.onboardingSeen;
+  let notificationsEnabled = getNotificationsPreference({ userName: currentUser, apartmentCode: code });
+  let pushAvailability = {
+    supported: false,
+    permission: 'default',
+    isStandalone: false,
+    vapidConfigured: false,
+  };
+
+  async function syncExternalBadge(unreadCount) {
+    if (document.visibilityState === 'visible') {
+      await clearAppBadgeCount();
+      return;
+    }
+    await syncAppBadgeCount(unreadCount);
+  }
+
+  function renderNotificationsToggleLabel() {
+    if (!notificationsToggleBtn) return;
+
+    if (!pushAvailability.supported) {
+      notificationsToggleBtn.textContent = 'Notifications: Unsupported';
+      notificationsToggleBtn.disabled = true;
+      return;
+    }
+
+    notificationsToggleBtn.disabled = false;
+    notificationsToggleBtn.textContent = notificationsEnabled
+      ? 'Notifications: On'
+      : 'Notifications: Off';
+  }
+
+  async function initializePushNotifications() {
+    try {
+      pushAvailability = await getPushAvailability();
+    } catch {
+      pushAvailability = {
+        supported: false,
+        permission: 'default',
+        isStandalone: false,
+        vapidConfigured: false,
+      };
+    }
+
+    renderNotificationsToggleLabel();
+
+    if (!notificationsEnabled) {
+      await clearAppBadgeCount();
+      return;
+    }
+
+    await initializePushMessaging({
+      userName: currentUser,
+      apartmentCode: code,
+      onForegroundMessage: async () => {
+        await syncExternalBadge(notifications.filter((notification) => !notification.read).length);
+      },
+    });
+  }
 
   const getOnboardingIconMarkup = (key) => {
     if (key === 'calendar') {
@@ -443,6 +513,10 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     if (!notificationsList || !notificationsCount) return;
 
     const unreadCount = notifications.filter((notification) => !notification.read).length;
+    syncExternalBadge(unreadCount).catch((error) => {
+      console.warn('Unable to sync app badge count:', error);
+    });
+
     if (unreadCount > 0) {
       notificationsCount.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
       notificationsCount.classList.remove('hidden');
@@ -534,6 +608,48 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
       } catch (error) {
         console.error('Unable to clear notifications:', error);
         alert('Unable to clear notifications right now. Please try again.');
+      }
+    });
+  }
+
+  if (notificationsToggleBtn) {
+    notificationsToggleBtn.addEventListener('click', async () => {
+      if (!pushAvailability.supported) {
+        alert('Push notifications are not supported on this device/browser.');
+        return;
+      }
+
+      if (notificationsEnabled) {
+        try {
+          await disablePushNotifications({ userName: currentUser, apartmentCode: code });
+          notificationsEnabled = false;
+          renderNotificationsToggleLabel();
+          return;
+        } catch (error) {
+          console.error('Unable to disable push notifications:', error);
+          alert('Unable to turn notifications off right now. Please try again.');
+          return;
+        }
+      }
+
+      const configuredVapidKey = getResolvedVapidKey();
+      if (!configuredVapidKey) {
+        alert('Missing Firebase Web Push certificate key. Ask admin to set DEFAULT_VAPID_KEY in js/push_notifications.js.');
+        return;
+      }
+
+      try {
+        await enablePushNotifications({
+          userName: currentUser,
+          apartmentCode: code,
+          vapidKey: configuredVapidKey,
+        });
+        notificationsEnabled = true;
+        renderNotificationsToggleLabel();
+      } catch (error) {
+        console.error('Unable to enable push notifications:', error);
+        const fallbackMessage = 'Unable to turn notifications on. Make sure notification permissions are allowed.';
+        alert(error && error.message ? error.message : fallbackMessage);
       }
     });
   }
@@ -640,6 +756,24 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   if (shouldShowOnboarding) {
     openOnboarding();
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      clearAppBadgeCount().catch(() => {});
+      return;
+    }
+
+    const unreadCount = notifications.filter((notification) => !notification.read).length;
+    syncAppBadgeCount(unreadCount).catch(() => {});
+  });
+
+  window.addEventListener('focus', () => {
+    clearAppBadgeCount().catch(() => {});
+  });
+
+  initializePushNotifications().catch((error) => {
+    console.warn('Push notification initialization failed:', error);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async function() {

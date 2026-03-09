@@ -17,5 +17,12 @@
       "sizes": "180x180",
       "type": "image/jpeg"
     }
+  ],
+  "badges": [
+    {
+      "src": "/Logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }

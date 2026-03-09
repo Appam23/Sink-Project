@@ -82,6 +82,10 @@ service cloud.firestore {
       allow read, write: if isApartmentMember(apartmentCode);
     }
 
+    match /apartments/{apartmentCode}/pushTokens/{tokenId} {
+      allow read, write: if isApartmentMember(apartmentCode);
+    }
+
     match /apartments/{apartmentCode}/chatMessages/{messageId} {
       allow read, write: if isApartmentMember(apartmentCode);
     }
