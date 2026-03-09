@@ -13,6 +13,12 @@ function mapSignupError(error) {
   if (code.startsWith('auth/requests-from-referer-')) {
     return 'This local URL is blocked by Firebase Auth. Add localhost and 127.0.0.1 to Authentication > Settings > Authorized domains.';
   }
+  if (code === 'auth/web-storage-unsupported') {
+    return 'This browser is blocking secure storage required for sign up. Disable private browsing mode or try a different mobile browser.';
+  }
+  if (code === 'auth/operation-not-supported-in-this-environment') {
+    return 'This browser is blocking authentication in the current privacy mode. Disable private browsing mode and try again.';
+  }
   if (code === 'auth/network-request-failed' && isLocalDevHost()) {
     return 'Cannot reach Firebase Auth locally. Start emulator with: firebase emulators:start --only auth';
   }
