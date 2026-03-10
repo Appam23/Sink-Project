@@ -1,7 +1,7 @@
 import { requireApartmentMembershipAsync } from './auth.js';
 import { getUserProfile, saveUserProfile } from './profiles.js';
 
-const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
+const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg?v=20260310';
 const MAX_IMAGE_DIMENSION = 960;
 const MIN_IMAGE_DIMENSION = 480;
 const IMAGE_QUALITY = 0.62;

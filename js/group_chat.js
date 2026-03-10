@@ -17,7 +17,7 @@ import {
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
-const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
+const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg?v=20260310';
 
 const MAX_IMAGE_DIMENSION = 960;
 const MIN_IMAGE_DIMENSION = 480;

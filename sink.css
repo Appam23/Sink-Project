@@ -949,14 +949,17 @@ body {
 }
 
 .settings-floating-btn {
+    --settings-btn-bg: #59B9FF;
     position: absolute;
     left: 24px;
     bottom: 20px;
     width: 52px;
     height: 52px;
+    padding: 0;
+    box-sizing: border-box;
     border-radius: 50%;
     border: none;
-    background: #59B9FF;
+    background: var(--settings-btn-bg);
     color: #fff;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     display: flex;
@@ -967,14 +970,20 @@ body {
 }
 
 .settings-floating-btn:hover {
-    background: #3E78B2;
+    --settings-btn-bg: #3E78B2;
+    background: var(--settings-btn-bg);
     color: #fff;
 }
 
 .settings-gear-icon {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
+    display: block;
     fill: #fff;
+}
+
+.settings-gear-hole {
+    fill: var(--settings-btn-bg);
 }
 
 .settings-popup {
@@ -991,6 +1000,29 @@ body {
     flex-direction: column;
     gap: 8px;
     z-index: 120;
+}
+
+@media (max-width: 768px) {
+    .container.home-container .logout-bottom-right {
+        position: fixed;
+        right: 16px;
+        bottom: calc(84px + env(safe-area-inset-bottom));
+        z-index: 920;
+    }
+
+    .container.home-container .settings-floating-btn {
+        position: fixed;
+        left: 16px;
+        bottom: calc(76px + env(safe-area-inset-bottom));
+        z-index: 930;
+    }
+
+    .container.home-container .settings-popup {
+        position: fixed;
+        left: 16px;
+        bottom: calc(138px + env(safe-area-inset-bottom));
+        z-index: 940;
+    }
 }
 
 .settings-action-btn {
@@ -1746,6 +1778,11 @@ button:hover, .main-btn:hover {
 .edit-event-btn {
     background: #14591D;
     color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.9em;
 }
 
 .edit-event-btn:hover {
@@ -1805,6 +1842,12 @@ button:hover, .main-btn:hover {
     z-index: 200;
 }
 
+#add-task-btn,
+#add-task-btn:hover,
+#add-task-btn:active {
+    background: #FF9F1C;
+}
+
 @media (max-width: 768px) {
     #add-task-btn,
     #add-event-btn {
@@ -1856,7 +1899,7 @@ button:hover, .main-btn:hover {
     padding: 12px;
     border-radius: 12px;
     border: 1px solid #d7ece8;
-    background: linear-gradient(135deg, #f5fffd 0%, #edf8ff 100%);
+    background: rgba(255,159,28,0.08);    
     box-sizing: border-box;
 }
 
@@ -1867,9 +1910,9 @@ button:hover, .main-btn:hover {
 }
 
 .tasks-filter-btn {
-    border: 1px solid #bfeae4;
-    background: #f4fbf9;
-    color: #0d7065;
+    border: 1px solid #FF9F1C;
+    background: #FF9F1C;
+    color: white;
     border-radius: 999px;
     padding: 7px 12px;
     font-size: 0.88rem;
