@@ -3,56 +3,57 @@
     padding: 10px 0;
     margin: 18px auto 0 auto;
     border-radius: 10px;
-    background-color: #12f8e1;
+    background-color: #59B9FF;
+    color: #fff;
     box-shadow: 0 6px 24px rgba(0,0,0,0.13);
-
 }
- #back-btn, #main-btn, #sub-login, #sub-signup {
+#show-login:hover, #show-signup:hover {
+    background-color: #3E78B2;
+    color: #fff;
+}
+#back-btn, #main-btn, #sub-login, #sub-signup {
     width: 50%;
     max-width: 420px;
     margin: 20px auto 50px auto;
-    background: #47d9ca;
+    background: #59B9FF;
+    color: #fff;
     border-radius: 10px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+    box-shadow: 0 6px 24px rgba(89,185,255,0.13);
     display: flex;
     flex-direction: column;
     align-items: center;
     box-sizing: border-box;
 }
 #save-profile-btn, .upload-btn, #back-to-apartment-btn {
-    background: #47d9ca;
+    background: #59B9FF;
+    color: #fff;
     padding: 6px 16px;
     border-radius: 5px;
     margin-top: 8px;
 }
-#back-btn:hover, #sub-login:hover {
-    background: #f0f0f0;
+#back-btn:hover, #main-btn:hover, #sub-login:hover, #sub-signup:hover,
+#save-profile-btn:hover, .upload-btn:hover, #back-to-apartment-btn:hover {
+    background: #3E78B2;
+    color: #fff;
 }
-
-#back-btn:active, #sub-login:active {
-    background: #e0e0e0;
+#back-btn:active, #sub-login:active, .upload-btn:active {
+    background: #3E78B2;
+    color: #fff;
 }
 
 #sub-login, #sub-signup {
     margin-top: 30px !important;
 }
 
-.upload-btn:active {
-    background: #95e455;
-    color: #222;
-    transform: scale(0.96);
-    box-shadow: 0 2px 8px rgba(18, 248, 225, 0.15);
-}
 .upload-btn {
     display: inline-block;
-    color: #222;
     cursor: pointer;
     font-size: 15px;
     transition: background 0.2s, color 0.2s;
 }
 .upload-btn:hover {
-    background: #2ddd42;
-    color: #040403;
+    background: #3E78B2;
+    color: #fff;
 }
 /* Profile page footer styles */
 .profile-footer {
@@ -104,7 +105,7 @@
     display: block;
     width: 18px;
     height: 14px;
-    background: #4a90e2;
+    background: #59B9FF;
     position: absolute;
     left: 5px;
     top: 9px;
@@ -117,7 +118,7 @@
     height: 0;
     border-left: 14px solid transparent;
     border-right: 14px solid transparent;
-    border-bottom: 12px solid #4a90e2;
+    border-bottom: 12px solid #59B9FF;
     position: absolute;
     left: 0px;
     top: 0px;
@@ -738,7 +739,7 @@ body {
 
 .notifications-btn {
     border: none;
-    background: #47d9ca;
+    background: #59B9FF;
     color: #fff;
     border-radius: 999px;
     padding: 6px 10px;
@@ -750,7 +751,8 @@ body {
 }
 
 .notifications-btn:hover {
-    background: #35c4b8;
+    background: #3E78B2;
+    color: #fff;
 }
 
 .notifications-bell {
@@ -803,14 +805,15 @@ body {
     border: none;
     border-radius: 8px;
     padding: 6px 10px;
-    background: #47d9ca;
+    background: #59B9FF;
     color: #fff;
     font-weight: 600;
     cursor: pointer;
 }
 
 .clear-notifications-btn:hover {
-    background: #35c4b8;
+    background: #3E78B2;
+    color: #fff;
 }
 
 .notification-item {
@@ -953,7 +956,8 @@ body {
     height: 52px;
     border-radius: 50%;
     border: none;
-    background: #47d9ca;
+    background: #59B9FF;
+    color: #fff;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     display: flex;
     align-items: center;
@@ -963,7 +967,8 @@ body {
 }
 
 .settings-floating-btn:hover {
-    background: #35c4b8;
+    background: #3E78B2;
+    color: #fff;
 }
 
 .settings-gear-icon {
@@ -993,7 +998,7 @@ body {
     border: none;
     border-radius: 8px;
     padding: 10px 12px;
-    background: #47d9ca;
+    background: #59B9FF;
     color: #fff;
     font-weight: 600;
     cursor: pointer;
@@ -1001,7 +1006,8 @@ body {
 }
 
 .settings-action-btn:hover {
-    background: #35c4b8;
+    background: #3E78B2;
+    color: #fff;
 }
 
 .settings-action-btn:disabled {
@@ -1025,9 +1031,10 @@ body {
     width: 50%;
     max-width: 420px;
     margin: 20px auto 50px auto;
-    background: #47d9ca;
+    background: #59B9FF;
+    color: #fff;
     border-radius: 10px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+    box-shadow: 0 6px 24px rgba(89,185,255,0.13);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1183,7 +1190,8 @@ input, .bio-input {
     transform: scale(0.98);
 }
 button:hover, .main-btn:hover {
-    background: #95e455;
+    background: #3E78B2;
+    color: #fff;
 }
 
 
@@ -1232,11 +1240,11 @@ button:hover, .main-btn:hover {
 
 .apartment-option {
     width: 100%;
-    background: linear-gradient(135deg, #f7fbff 0%, #f0f8ff 100%);
-    border: 2px solid #d4e8f7;
+    background: linear-gradient(135deg, #eef8ff 0%, #f6fbff 100%);
+    border: 2px solid rgba(89,185,255,0.25);
     border-radius: 12px;
     padding: 20px;
-    box-shadow: 0 4px 16px rgba(18, 248, 225, 0.08);
+    box-shadow: 0 4px 16px rgba(89,185,255,0.06);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -1245,9 +1253,8 @@ button:hover, .main-btn:hover {
 }
 
 .apartment-option:hover {
-    box-shadow: 0 6px 24px rgba(18, 248, 225, 0.15);
-    border-color: #12f8e1;
-    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(89,185,255,0.12);
+    border-color: #59B9FF;
 }
 
 .apartment-option h3 {
@@ -1268,22 +1275,21 @@ button:hover, .main-btn:hover {
     width: 100%;
     max-width: none;
     margin: 8px 0;
-    background: #47d9ca;
+    background: #59B9FF;
+    color: #fff;
     border: none;
     border-radius: 8px;
     padding: 12px 16px;
     font-size: 1em;
     font-weight: 500;
-    color: #fff;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 3px 10px rgba(71, 217, 202, 0.2);
+    box-shadow: 0 3px 10px rgba(89,185,255,0.18);
 }
 
 .apartment-option .main-btn:hover {
-    background: #35c4b8;
-    box-shadow: 0 5px 16px rgba(71, 217, 202, 0.35);
-    transform: translateY(-1px);
+    background: #3E78B2;
+    color: #fff;
 }
 
 .apartment-option .main-btn:active {
@@ -1306,9 +1312,9 @@ button:hover, .main-btn:hover {
 
 .apartment-option input:focus {
     outline: none;
-    border-color: #12f8e1;
+    border-color: #59B9FF;
     background: #fff;
-    box-shadow: 0 0 8px rgba(18, 248, 225, 0.2);
+    box-shadow: 0 0 8px rgba(89,185,255,0.18);
 }
 
 .apartment-option input::placeholder {
@@ -1501,16 +1507,16 @@ button:hover, .main-btn:hover {
 }
 
 .calendar-day-cell.has-events {
-    border-color: #47d9ca;
+    border-color: #14591D;
 }
 
 .calendar-day-cell.today {
-    box-shadow: inset 0 0 0 2px #47d9ca;
+    box-shadow: inset 0 0 0 2px #14591D;
 }
 
 .calendar-day-cell.selected {
-    background: #e8fbf9;
-    border-color: #35c4b8;
+    background: #e8f5ea;
+    border-color: #0A210F;
 }
 
 .calendar-day-number {
@@ -1520,17 +1526,12 @@ button:hover, .main-btn:hover {
 }
 
 .calendar-day-count {
-    font-size: 0.7rem;
-    color: #47d9ca;
+    color: #14591D;
     font-weight: 700;
 }
 
 .calendar-day-marker {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #47d9ca;
-    display: inline-block;
+    background: #14591D;
 }
 
 .calendar-month-day-events {
@@ -1586,7 +1587,7 @@ button:hover, .main-btn:hover {
 .event-date {
     font-size: 0.9em;
     font-weight: 600;
-    color: #47d9ca;
+    color: #14591D;
     text-align: center;
 }
 
@@ -1604,7 +1605,7 @@ button:hover, .main-btn:hover {
 }
 .due-date {
     font-weight: 600;
-    color: #47d9ca;
+    color: #14591D;
     text-align: center;
 }
 .task-thumb {
@@ -1710,7 +1711,7 @@ button:hover, .main-btn:hover {
 .event-time {
     font-size: 0.9em;
     font-weight: 500;
-    color: #47d9ca;
+    color: #14591D;
     text-align: right;
     display: flex;
     flex-direction: column;
@@ -1719,19 +1720,14 @@ button:hover, .main-btn:hover {
 }
 
 .attend-event-btn {
-    background: #e8f8f6;
-    color: #0f746a;
-    border: 1px solid #7bd9cf;
-    border-radius: 6px;
-    padding: 5px 7px;
-    cursor: pointer;
-    font-size: 0.72em;
-    font-weight: 600;
+    background: #eaf6ea;
+    color: #0A210F;
+    border: 1px solid rgba(20,89,29,0.18);
 }
 
 .attend-event-btn.active {
-    background: #47d9ca;
-    border-color: #47d9ca;
+    background: #14591D;
+    border-color: #14591D;
     color: #fff;
 }
 
@@ -1748,17 +1744,12 @@ button:hover, .main-btn:hover {
 }
 
 .edit-event-btn {
-    background: #47d9ca;
+    background: #14591D;
     color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 5px 7px;
-    cursor: pointer;
-    font-size: 0.72em;
 }
 
 .edit-event-btn:hover {
-    background: #35c4b8;
+    background: #0A210F;
 }
 
 .delete-event-btn {
@@ -1775,19 +1766,6 @@ button:hover, .main-btn:hover {
     background: #ff5252;
 }
 
-.no-events {
-    text-align: center;
-    color: #999;
-    padding: 20px;
-    grid-column: 1 / -1;
-}
-
-.no-tasks {
-    text-align: center;
-    color: #999;
-    padding: 10px 6px;
-}
-
 .add-event-btn {
     position: absolute;
     right: 24px;
@@ -1795,13 +1773,13 @@ button:hover, .main-btn:hover {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: #47d9ca;
+    background: #14591D;
     color: white;
     border: none;
     font-size: 32px;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(71, 217, 202, 0.3);
+    box-shadow: 0 4px 12px rgba(20,89,29,0.28);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1810,8 +1788,8 @@ button:hover, .main-btn:hover {
 }
 
 .add-event-btn:hover {
-    background: #35c4b8;
-    box-shadow: 0 6px 16px rgba(71, 217, 202, 0.4);
+    background: #0A210F;
+    box-shadow: 0 6px 16px rgba(20,89,29,0.36);
     transform: scale(1.1);
 }
 
@@ -1905,8 +1883,8 @@ button:hover, .main-btn:hover {
 }
 
 .tasks-filter-btn.active {
-    background: #47d9ca;
-    border-color: #47d9ca;
+    background: #FF9F1C;
+    border-color: #FF9F1C;
     color: #fff;
 }
 
@@ -1949,9 +1927,9 @@ button:hover, .main-btn:hover {
     justify-content: center;
     font-size: 0.82rem;
     font-weight: 700;
-    color: #0f746a;
-    background: #e5f7f4;
-    border: 1px solid #bfeae4;
+    color: #B45F00;
+    background: rgba(255,159,28,0.08);
+    border: 1px solid rgba(255,159,28,0.12);
 }
 
 .task-list {
@@ -1993,7 +1971,7 @@ button:hover, .main-btn:hover {
 .task-time-value {
     font-size: 0.86rem;
     font-weight: 700;
-    color: #47d9ca;
+    color: #FF9F1C;
 }
 
 .task-actions {
@@ -2017,12 +1995,13 @@ button:hover, .main-btn:hover {
 }
 
 .tasks-page .complete-btn {
-    background: #47d9ca;
+    background: #FF9F1C;
     color: #fff;
 }
 
 .tasks-page .complete-btn:hover {
-    background: #35c4b8;
+    background: #FFBF69;
+    color: #fff;
 }
 
 .tasks-page .no-tasks {
@@ -2160,13 +2139,21 @@ button:hover, .main-btn:hover {
     max-width: none;
     margin: 16px 0 0 0;
     padding: 12px;
+    background: #59B9FF;
+    color: #fff;
+}
+
+#event-form .main-btn:hover {
+    background: #3E78B2;
+    color: #fff;
 }
 
 /* Group chat page styles */
 .container.group-chat-container {
     padding: 0;
     overflow: hidden;
-    background: #b76cf4;
+    background: #B288C0;
+    color: #fff;
 }
 
 .group-chat-page {
@@ -2177,7 +2164,8 @@ button:hover, .main-btn:hover {
     flex: 1 1 auto;
     width: 100%;
     box-sizing: border-box;
-    background: #b76cf4;
+    background: #B288C0;
+    color: #fff;
 }
 
 .chat-header {
@@ -2187,9 +2175,9 @@ button:hover, .main-btn:hover {
     justify-content: center;
     min-height: 64px;
     padding: 10px 16px;
-    background: #b76cf4;
+    background: #B288C0;
     color: #fff;
-    border-bottom: 1px solid #a97be7;
+    border-bottom: 1px solid rgba(178,136,192,0.2);
 }
 
 .chat-header h2 {
@@ -2204,9 +2192,9 @@ button:hover, .main-btn:hover {
     left: 10px;
     top: 50%;
     transform: translateY(-50%);
-    border: 1px solid #bfece8;
-    background: #ecfbf9;
-    color: #47d9ca;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.12);
+    color: #fff;
     font-size: 1rem;
     font-weight: 700;
     line-height: 1.1;
@@ -2219,8 +2207,8 @@ button:hover, .main-btn:hover {
 }
 
 .chat-back-btn:hover {
-    background: #dff8f5;
-    border-color: #9de0da;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
 }
 
 .chat-back-btn:active {
@@ -2259,12 +2247,14 @@ button:hover, .main-btn:hover {
 
 .message-bubble.sent {
     align-self: flex-end;
-    background: #d6b3ff;
+    background: #EDE3F4;
+    color: #2b1b2f;
 }
 
 .message-bubble.received {
     align-self: flex-start;
-    background: #e6d6fa;
+    background: #F6ECF9;
+    color: #2b1b2f;
 }
 
 .message-pic {
@@ -2354,8 +2344,9 @@ button:hover, .main-btn:hover {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    background: #e6d6fa;
-    border-left: 3px solid #b76cf4;
+    background: #F2E7F5;
+    border-left: 3px solid #B288C0;
+    color: #2b1b2f;
     border-radius: 6px;
     padding: 6px 8px;
 }
@@ -2417,7 +2408,7 @@ button:hover, .main-btn:hover {
 .chat-input-form button {
     padding: 10px;
     border: none;
-    background: #b76cf4;
+    background: #B288C0;
     color: white;
     border-radius: 5px;
     cursor: pointer;
@@ -2425,7 +2416,8 @@ button:hover, .main-btn:hover {
 }
 
 .chat-input-form button:hover {
-    background: #a97be7;
+    background: #E4B7E5;
+    color: #fff;
 }
 
 .chat-upload-status {
@@ -2472,14 +2464,20 @@ button:hover, .main-btn:hover {
     border: none;
     border-radius: 6px;
     padding: 6px 10px;
-    background: #b76cf4;
+    background: #B288C0;
     color: #fff;
     font-size: 0.9rem;
     cursor: pointer;
 }
 
+.chat-message-action-btn:hover {
+    background: #E4B7E5;
+    color: #fff;
+}
+
 .chat-message-action-btn.delete {
     background: #ef5350;
+    color: #fff;
 }
 
 .preview-image {
