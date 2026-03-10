@@ -19,7 +19,71 @@ import {
   removeUserFromAllApartments,
 } from './apartments.js';
 
-const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
+const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg?v=20260310';
+
+function extractSvgPayload(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed.toLowerCase().startsWith('data:image/svg+xml')) return '';
+
+  const commaIndex = trimmed.indexOf(',');
+  if (commaIndex === -1) return '';
+
+  const header = trimmed.slice(0, commaIndex).toLowerCase();
+  const payload = trimmed.slice(commaIndex + 1);
+
+  try {
+    if (header.includes(';base64')) {
+      return atob(payload).toLowerCase();
+    }
+    return decodeURIComponent(payload).toLowerCase();
+  } catch {
+    return payload.toLowerCase();
+  }
+}
+
+function isLegacyDefaultProfilePicture(value) {
+  const normalized = value && typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!normalized.startsWith('data:image/svg+xml')) return false;
+
+  const svgPayload = extractSvgPayload(value);
+  const content = `${normalized}\n${svgPayload}`;
+
+  const hasLegacyColor =
+    content.includes('#7abdb4') ||
+    content.includes('%237abdb4') ||
+    content.includes('#e9f7f5') ||
+    content.includes('%23e9f7f5') ||
+    content.includes('#d7f0ec') ||
+    content.includes('%23d7f0ec');
+
+  if (hasLegacyColor) return true;
+
+  // Fallback structural match for legacy default SVG variants.
+  return (
+    content.includes('viewbox="0 0 128 128"') &&
+    content.includes('cx="64"') &&
+    content.includes('cy="50"') &&
+    content.includes('d="m24 112c4-22 20-34 40-34s36 12 40 34"')
+  );
+}
+
+function isSvgDataUrl(value) {
+  return typeof value === 'string' && value.trim().toLowerCase().startsWith('data:image/svg+xml');
+}
+
+function isDefaultProfileReference(value) {
+  if (typeof value !== 'string') return false;
+  return value.trim().toLowerCase().includes('default-profile');
+}
+
+function resolveProfilePictureSrc(value) {
+  if (isLegacyDefaultProfilePicture(value) || isSvgDataUrl(value) || isDefaultProfileReference(value)) {
+    return DEFAULT_PROFILE_PICTURE;
+  }
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  return normalized || DEFAULT_PROFILE_PICTURE;
+}
 
 async function deleteUserAccountData(userName, apartmentCode = null) {
   await removeUserFromAllApartments(userName);
@@ -123,8 +187,9 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     <button id="logout-btn" class="quit-btn logout-bottom-right">Log Out</button>
 
     <button id="settings-btn" class="settings-floating-btn" aria-label="Open settings">
-      <svg viewBox="0 0 24 24" class="settings-gear-icon" aria-hidden="true">
-        <path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.08-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.2 7.2 0 0 0-1.69-.98l-.38-2.65a.5.5 0 0 0-.5-.42h-4a.5.5 0 0 0-.5.42L8.11 5.07c-.6.24-1.16.56-1.69.98l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.05.32-.08.65-.08.98s.03.66.08.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .6.22l2.49-1c.53.42 1.1.74 1.69.98l.38 2.65a.5.5 0 0 0 .5.42h4a.5.5 0 0 0 .5-.42l.38-2.65c.6-.24 1.16-.56 1.69-.98l2.49 1a.5.5 0 0 0 .6-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"></path>
+      <svg viewBox="0 0 16 16" class="settings-gear-icon" aria-hidden="true">
+        <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zm5.754 3.246a5.754 5.754 0 0 0-.094-1.022l1.14-.89a.5.5 0 0 0 .121-.638l-1.08-1.87a.5.5 0 0 0-.607-.22l-1.343.54a5.792 5.792 0 0 0-1.77-1.022l-.204-1.43A.5.5 0 0 0 9.423 1H6.577a.5.5 0 0 0-.494.426l-.204 1.43a5.792 5.792 0 0 0-1.77 1.022l-1.343-.54a.5.5 0 0 0-.607.22l-1.08 1.87a.5.5 0 0 0 .121.638l1.14.89a5.754 5.754 0 0 0 0 2.044l-1.14.89a.5.5 0 0 0-.121.638l1.08 1.87a.5.5 0 0 0 .607.22l1.343-.54c.531.438 1.134.79 1.77 1.022l.204 1.43a.5.5 0 0 0 .494.426h2.846a.5.5 0 0 0 .494-.426l.204-1.43a5.792 5.792 0 0 0 1.77-1.022l1.343.54a.5.5 0 0 0 .607-.22l1.08-1.87a.5.5 0 0 0-.121-.638l-1.14-.89c.061-.335.094-.677.094-1.022z"></path>
+        <circle class="settings-gear-hole" cx="8" cy="8" r="2"></circle>
       </svg>
     </button>
 
@@ -150,6 +215,28 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
 
   // Load current user's profile picture if available
   const profiles = code ? await getApartmentProfilesMap(code) : {};
+
+  if (code) {
+    const cleanupPromises = [];
+    Object.entries(profiles).forEach(([memberName, profile]) => {
+      if (!profile || (!isLegacyDefaultProfilePicture(profile.picture) && !isSvgDataUrl(profile.picture) && !isDefaultProfileReference(profile.picture))) return;
+
+      profile.picture = DEFAULT_PROFILE_PICTURE;
+      cleanupPromises.push(
+        saveUserProfile(code, memberName, { picture: DEFAULT_PROFILE_PICTURE })
+      );
+    });
+
+    if (cleanupPromises.length) {
+      Promise.allSettled(cleanupPromises).then((results) => {
+        const failed = results.filter((result) => result.status === 'rejected');
+        if (failed.length) {
+          console.warn('Some legacy profile picture cleanups failed:', failed);
+        }
+      });
+    }
+  }
+
   const myProfile = profiles[currentUser] || {};
   const authUser = getFirebaseAuthCurrentUser();
   const signupDisplayName = authUser && authUser.displayName ? String(authUser.displayName).trim() : '';
@@ -200,7 +287,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     overlay.innerHTML = `
       <div class="roommate-profile-card" role="dialog" aria-label="Roommate profile">
         <div class="roommate-profile-header">
-          <img src="${memberProfile.picture || DEFAULT_PROFILE_PICTURE}" class="roommate-profile-image" alt="${memberDisplay} profile" />
+          <img src="${resolveProfilePictureSrc(memberProfile.picture)}" class="roommate-profile-image" alt="${memberDisplay} profile" />
           <div class="roommate-profile-name">${memberDisplay}</div>
         </div>
         <div class="roommate-profile-info">
@@ -230,7 +317,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   if (usernameEl) usernameEl.textContent = getDisplayName(myProfile, signupDisplayName || currentUser || userName);
   const myPicEl = page.querySelector('#home-profile-pic');
   if (myPicEl) {
-    myPicEl.src = myProfile.picture || DEFAULT_PROFILE_PICTURE;
+    myPicEl.src = resolveProfilePictureSrc(myProfile.picture);
   }
 
   // Apartment code display
@@ -252,7 +339,7 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
         const memberProfile = profiles[m] || {};
         const memberDisplay = getDisplayName(memberProfile, m);
         row.innerHTML = `
-          <img src="${memberProfile.picture || DEFAULT_PROFILE_PICTURE}" class="roommate-pic" />
+          <img src="${resolveProfilePictureSrc(memberProfile.picture)}" class="roommate-pic" />
           <div class="roommate-name">${memberDisplay}</div>
         `;
         row.addEventListener('click', () => {

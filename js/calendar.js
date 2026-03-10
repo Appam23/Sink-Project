@@ -18,7 +18,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 const EVENTS_QUERY_LIMIT = 180;
-const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg';
+const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg?v=20260310';
 
 async function notifyRoommatesAboutNewEvent(eventName, actorUser, apartmentCode, members = []) {
   if (!apartmentCode || !Array.isArray(members)) return;
