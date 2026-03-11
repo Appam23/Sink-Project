@@ -97,26 +97,18 @@ exports.sendPushOnNotificationCreated = onDocumentCreated(
 
     const multicastMessage = {
       tokens,
-      notification: {
-        title: messageTitle,
-        body: messageBody,
-      },
       data: {
         apartmentCode,
         notificationId: String(snapshot.id || ''),
         type: String(notification.type || ''),
+        title: messageTitle,
+        body: messageBody,
         link,
         badgeCount: String(Math.max(0, unreadCount)),
       },
       webpush: {
         fcmOptions: {
           link,
-        },
-        notification: {
-          title: messageTitle,
-          body: messageBody,
-          icon: '/Logo.png',
-          badge: '/Logo.png',
         },
       },
     };
