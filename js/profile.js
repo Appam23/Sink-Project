@@ -462,10 +462,8 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
     document.getElementById('Bio').value = bio;
     if (existing.picture) {
       picPreview.src = existing.picture;
-      if (iconSpan) iconSpan.style.display = 'none';
-    } else if (iconSpan) {
-      iconSpan.style.display = 'block';
     }
+    if (iconSpan) iconSpan.style.display = 'none';
   }
 
   const backToApartmentBtn = profileDiv.querySelector('#back-to-apartment-btn');
