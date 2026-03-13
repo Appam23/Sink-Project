@@ -125,15 +125,23 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
         <div class="home-profile-pic">
           <img id="home-profile-pic" src="" alt="Your profile" />
         </div>
+        <div id="home-username" class="home-username"></div>
         <button id="edit-profile-btn" class="main-btn small">Edit Profile</button>
       </div>
       <div class="home-right">
         <div class="home-user-meta">
-          <div id="home-username" class="home-username"></div>
-          <button id="notifications-btn" class="notifications-btn" aria-label="Open notifications">
-            <span class="notifications-bell">🔔</span>
-            <span id="notifications-count" class="notifications-count hidden">0</span>
-          </button>
+          <div class="home-top-actions">
+            <button id="notifications-btn" class="notifications-btn" aria-label="Open notifications">
+              <span class="notifications-bell">🔔</span>
+              <span id="notifications-count" class="notifications-count hidden">0</span>
+            </button>
+            <button id="settings-btn" class="settings-floating-btn" aria-label="Open settings">
+              <svg viewBox="0 0 16 16" class="settings-gear-icon" aria-hidden="true">
+                <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zm5.754 3.246a5.754 5.754 0 0 0-.094-1.022l1.14-.89a.5.5 0 0 0 .121-.638l-1.08-1.87a.5.5 0 0 0-.607-.22l-1.343.54a5.792 5.792 0 0 0-1.77-1.022l-.204-1.43A.5.5 0 0 0 9.423 1H6.577a.5.5 0 0 0-.494.426l-.204 1.43a5.792 5.792 0 0 0-1.77 1.022l-1.343-.54a.5.5 0 0 0-.607.22l-1.08 1.87a.5.5 0 0 0 .121.638l1.14.89a5.754 5.754 0 0 0 0 2.044l-1.14.89a.5.5 0 0 0-.121.638l1.08 1.87a.5.5 0 0 0 .607.22l1.343-.54c.531.438 1.134.79 1.77 1.022l.204 1.43a.5.5 0 0 0 .494.426h2.846a.5.5 0 0 0 .494-.426l.204-1.43a5.792 5.792 0 0 0 1.77-1.022l1.343.54a.5.5 0 0 0 .607-.22l1.08-1.87a.5.5 0 0 0-.121-.638l-1.14-.89c.061-.335.094-.677.094-1.022z"></path>
+                <circle class="settings-gear-hole" cx="8" cy="8" r="2"></circle>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -185,13 +193,6 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     </div>
 
     <button id="logout-btn" class="quit-btn logout-bottom-right">Log Out</button>
-
-    <button id="settings-btn" class="settings-floating-btn" aria-label="Open settings">
-      <svg viewBox="0 0 16 16" class="settings-gear-icon" aria-hidden="true">
-        <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zm5.754 3.246a5.754 5.754 0 0 0-.094-1.022l1.14-.89a.5.5 0 0 0 .121-.638l-1.08-1.87a.5.5 0 0 0-.607-.22l-1.343.54a5.792 5.792 0 0 0-1.77-1.022l-.204-1.43A.5.5 0 0 0 9.423 1H6.577a.5.5 0 0 0-.494.426l-.204 1.43a5.792 5.792 0 0 0-1.77 1.022l-1.343-.54a.5.5 0 0 0-.607.22l-1.08 1.87a.5.5 0 0 0 .121.638l1.14.89a5.754 5.754 0 0 0 0 2.044l-1.14.89a.5.5 0 0 0-.121.638l1.08 1.87a.5.5 0 0 0 .607.22l1.343-.54c.531.438 1.134.79 1.77 1.022l.204 1.43a.5.5 0 0 0 .494.426h2.846a.5.5 0 0 0 .494-.426l.204-1.43a5.792 5.792 0 0 0 1.77-1.022l1.343.54a.5.5 0 0 0 .607-.22l1.08-1.87a.5.5 0 0 0-.121-.638l-1.14-.89c.061-.335.094-.677.094-1.022z"></path>
-        <circle class="settings-gear-hole" cx="8" cy="8" r="2"></circle>
-      </svg>
-    </button>
 
     <div id="settings-popup" class="settings-popup hidden" role="dialog" aria-label="Apartment settings">
       <button id="notifications-toggle-btn" class="settings-action-btn">Notifications: Off</button>
