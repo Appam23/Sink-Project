@@ -515,8 +515,70 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           ${msg.text ? `<p>${msg.text}</p>` : ''}
           ${editedLabelHtml}
           ${attachmentHtml}
+          ${msg.sender !== userName ? `<button class="reaction-btn" title="Add Reaction" style="display:none;">😊</button><span class="reaction-display"></span>` : ''}
         </div>
       `;
+
+      // Show reaction button after hover for 1 second
+      if (msg.sender !== userName) {
+        const reactionBtn = messageBubble.querySelector('.reaction-btn');
+        const reactionDisplay = messageBubble.querySelector('.reaction-display');
+        let hoverTimer = null;
+        messageBubble.addEventListener('mouseenter', () => {
+          hoverTimer = setTimeout(() => {
+            if (reactionBtn) reactionBtn.style.display = 'inline-block';
+          }, 1000);
+        });
+        messageBubble.addEventListener('mouseleave', () => {
+          if (hoverTimer) clearTimeout(hoverTimer);
+          if (reactionBtn) reactionBtn.style.display = 'none';
+        });
+        if (reactionBtn && reactionDisplay) {
+          reactionBtn.addEventListener('click', () => {
+            // Simple emoji picker
+            const emojis = ['👍', '❤️', '😂', '😮', '😢', '😡', '😊', '😉'];
+            const picker = document.createElement('div');
+            picker.className = 'emoji-picker';
+            picker.style.position = 'absolute';
+            picker.style.background = '#fff';
+            picker.style.border = '1px solid #ccc';
+            picker.style.padding = '4px';
+            picker.style.zIndex = 1000;
+            emojis.forEach(emoji => {
+              const btn = document.createElement('button');
+              btn.textContent = emoji;
+              btn.style.fontSize = '20px';
+              btn.style.margin = '2px';
+              btn.addEventListener('click', () => {
+                reactionDisplay.innerHTML = `<span style="font-size:22px;vertical-align:middle;">${emoji}</span> <button class="delete-reaction-btn" title="Delete Reaction" style="margin-left:8px;font-size:16px;padding:2px 6px;border:none;background:#f8d7da;color:#721c24;border-radius:4px;cursor:pointer;vertical-align:middle;">✖ Remove</button>`;
+                picker.remove();
+                // Attach delete handler immediately
+                const deleteBtn = reactionDisplay.querySelector('.delete-reaction-btn');
+                if (deleteBtn) {
+                  deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    reactionDisplay.textContent = '';
+                  });
+                }
+              });
+              picker.appendChild(btn);
+            });
+            document.body.appendChild(picker);
+            // Position picker near button
+            const rect = reactionBtn.getBoundingClientRect();
+            picker.style.left = `${rect.left}px`;
+            picker.style.top = `${rect.bottom + window.scrollY}px`;
+            // Remove picker if clicking outside
+            const removePicker = (e) => {
+              if (!picker.contains(e.target)) picker.remove();
+              document.removeEventListener('mousedown', removePicker);
+            };
+            document.addEventListener('mousedown', removePicker);
+          });
+          // Remove duplicate handler, only attach delete handler after setting reaction
+        }
+      }
+
 
       if (replyContext) {
         const replySenderElement = messageBubble.querySelector('.message-reply-sender');
