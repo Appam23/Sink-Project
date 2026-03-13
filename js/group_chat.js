@@ -194,7 +194,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       <button type="button" id="attach-file-btn">📎</button>
       <button type="submit" id="chat-send-btn">Send</button>
     </form>
-    <div id="chat-upload-status" class="chat-upload-status" aria-live="polite"></div>
+    
   `;
 
   container.appendChild(page);
@@ -322,6 +322,47 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
 
   let messages = [];
   let unsubscribeMessages = null;
+  let keepPinnedToBottom = true;
+  let forceScrollToBottomOnNextRender = true;
+  let lockBottomUntil = 0;
+
+  function isBottomLockActive() {
+    return Date.now() < lockBottomUntil;
+  }
+
+  function activateBottomLock(durationMs = 1200) {
+    keepPinnedToBottom = true;
+    lockBottomUntil = Date.now() + durationMs;
+  }
+
+  function isChatNearBottom(thresholdPx = 120) {
+    const remaining = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight;
+    return remaining <= thresholdPx;
+  }
+
+  function scrollChatToBottom() {
+    const lastMessage = chatBox.lastElementChild;
+    if (lastMessage instanceof HTMLElement) {
+      lastMessage.scrollIntoView({ block: 'end' });
+    }
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+    page.scrollTop = page.scrollHeight;
+    container.scrollTop = container.scrollHeight;
+    window.scrollTo(0, document.body.scrollHeight);
+  }
+
+  function keepChatAtBottomFor(durationMs = 1200) {
+    activateBottomLock(durationMs);
+    const startedAt = Date.now();
+    const tick = () => {
+      chatBox.scrollTop = chatBox.scrollHeight;
+      if (Date.now() - startedAt < durationMs) {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  }
 
   function getMessageCreatedAtValue(messageData) {
     const createdAt = messageData && messageData.createdAt ? messageData.createdAt : null;
@@ -501,7 +542,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
 
       const attachmentHtml = attachmentData
         ? (isImageAttachment
-          ? `<img src="${attachmentData}" alt="${attachmentName}" style="max-width:220px; width:100%; border-radius:8px;" />`
+          ? `<img src="${attachmentData}" alt="${attachmentName}" class="chat-attachment-image" style="max-width:220px; width:100%; border-radius:8px;" />`
           : `<a href="${attachmentData}" target="_blank" rel="noopener noreferrer" download="${attachmentName}">${attachmentName}</a>`)
         : '';
 
@@ -621,9 +662,28 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         });
       }
 
+      const attachmentImage = messageBubble.querySelector('.chat-attachment-image');
+      if (attachmentImage) {
+        attachmentImage.addEventListener('load', () => {
+          if (keepPinnedToBottom) {
+            keepChatAtBottomFor(500);
+          }
+        });
+
+        if (attachmentImage.complete) {
+          if (keepPinnedToBottom) {
+            keepChatAtBottomFor(500);
+          }
+        }
+      }
+
       chatBox.appendChild(messageBubble);
     });
-    chatBox.scrollTop = chatBox.scrollHeight;
+
+    if (keepPinnedToBottom || forceScrollToBottomOnNextRender) {
+      forceScrollToBottomOnNextRender = false;
+      keepChatAtBottomFor(1200);
+    }
   }
 
   const messageQuery = query(
@@ -652,6 +712,12 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       })
       .sort((a, b) => a.createdAtValue - b.createdAtValue);
     renderMessages();
+
+    if (keepPinnedToBottom || forceScrollToBottomOnNextRender) {
+      setTimeout(() => {
+        keepChatAtBottomFor(900);
+      }, 80);
+    }
   }, (error) => {
     console.error('Unable to subscribe to chat messages:', error);
   });
@@ -664,6 +730,11 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   };
 
   window.addEventListener('pagehide', cleanupListener, { once: true });
+
+  chatBox.addEventListener('scroll', () => {
+    if (isBottomLockActive()) return;
+    keepPinnedToBottom = isChatNearBottom();
+  }, { passive: true });
 
   function setUploadState(isBusy, message = '') {
     if (uploadStatus) uploadStatus.textContent = message;
@@ -774,6 +845,8 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           createdAt: serverTimestamp(),
         });
         await pruneChatMessagesIfNeeded(messagesCollectionRef);
+        forceScrollToBottomOnNextRender = true;
+        keepChatAtBottomFor(1200);
       } catch (error) {
         if (isFirestoreMessageSizeError(error)) {
           setUploadState(false, '');

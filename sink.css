@@ -2253,7 +2253,7 @@ button:hover, .main-btn:hover {
 .container.group-chat-container {
     padding: 0;
     overflow: hidden;
-    background: #B288C0;
+    background: #f5f5f5;
     color: #fff;
 }
 
@@ -2265,12 +2265,17 @@ button:hover, .main-btn:hover {
     flex: 1 1 auto;
     width: 100%;
     box-sizing: border-box;
-    background: #B288C0;
+    background: #f5f5f5;
     color: #fff;
 }
 
 .chat-header {
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(98vw, 600px);
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2279,6 +2284,7 @@ button:hover, .main-btn:hover {
     background: #B288C0;
     color: #fff;
     border-bottom: 1px solid rgba(178,136,192,0.2);
+    z-index: 8;
 }
 
 .chat-header h2 {
@@ -2318,8 +2324,13 @@ button:hover, .main-btn:hover {
 }
 
 .chat-box {
-    flex: 1 1 auto;
-    min-height: 0;
+    position: fixed;
+    top: 84px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(98vw, 600px);
+    box-sizing: border-box;
     padding: 12px;
     overflow-y: auto;
     background: #f5f5f5;
@@ -2419,14 +2430,18 @@ button:hover, .main-btn:hover {
     display: flex;
     order: 3;
     margin-top: auto;
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(98vw, 600px);
+    box-sizing: border-box;
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
     border-top: 1px solid #e0e0e0;
     background: #fff;
     align-items: flex-end;
     gap: 10px;
-    z-index: 5;
+    z-index: 8;
 }
 
 .chat-compose-box {
@@ -2519,14 +2534,6 @@ button:hover, .main-btn:hover {
 .chat-input-form button:hover {
     background: #E4B7E5;
     color: #fff;
-}
-
-.chat-upload-status {
-    order: 2;
-    min-height: 18px;
-    padding: 6px 12px 4px;
-    color: #6d6d6d;
-    font-size: 0.85rem;
 }
 
 .chat-attachment-preview {
