@@ -549,7 +549,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       const messageBubble = document.createElement('div');
       messageBubble.className = `message-bubble ${msg.sender === userName ? 'sent' : 'received'}`;
       messageBubble.innerHTML = `
-        <img src="${senderPic}" class="message-pic" />
+        <img src="${senderPic}" class="message-pic" alt="Sender profile picture" />
         <div class="message-content">
           <span class="message-sender">${senderLabel}</span>
           ${replyContext ? `<div class="message-reply-context"><span class="message-reply-sender"></span><p class="message-reply-text"></p></div>` : ''}
@@ -565,6 +565,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         const reactionBtn = messageBubble.querySelector('.reaction-btn');
         const reactionDisplay = messageBubble.querySelector('.reaction-display');
         let hoverTimer = null;
+        // Desktop: show after hover
         messageBubble.addEventListener('mouseenter', () => {
           hoverTimer = setTimeout(() => {
             if (reactionBtn) reactionBtn.style.display = 'inline-block';
@@ -574,6 +575,41 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           if (hoverTimer) clearTimeout(hoverTimer);
           if (reactionBtn) reactionBtn.style.display = 'none';
         });
+        // Mobile: show on tap or long-press
+        let touchTimer = null;
+        messageBubble.addEventListener('touchstart', (e) => {
+          if (touchTimer) clearTimeout(touchTimer);
+          touchTimer = setTimeout(() => {
+            if (reactionBtn) reactionBtn.style.display = 'inline-block';
+          }, 350); // shorter delay for mobile
+        }, { passive: true });
+        messageBubble.addEventListener('touchend', () => {
+          if (touchTimer) clearTimeout(touchTimer);
+        }, { passive: true });
+        // Hide button on touch outside
+        document.addEventListener('touchstart', (e) => {
+          if (reactionBtn && !messageBubble.contains(e.target)) {
+            reactionBtn.style.display = 'none';
+          }
+        }, { passive: true });
+        // Show persisted reaction if present
+        if (reactionDisplay && msg.reaction) {
+          reactionDisplay.innerHTML = `<span style="font-size:22px;vertical-align:middle;">${msg.reaction}</span> <button class="delete-reaction-btn" title="Delete Reaction" style="margin-left:8px;font-size:16px;padding:2px 6px;border:none;background:#f8d7da;color:#721c24;border-radius:4px;cursor:pointer;vertical-align:middle;">✖ Remove</button>`;
+          const deleteBtn = reactionDisplay.querySelector('.delete-reaction-btn');
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', async (e) => {
+              e.stopPropagation();
+              reactionDisplay.textContent = '';
+              if (msg.id) {
+                try {
+                  await updateDoc(doc(messagesCollectionRef, msg.id), { reaction: '' });
+                } catch (err) {
+                  console.error('Failed to delete reaction:', err);
+                }
+              }
+            });
+          }
+        }
         if (reactionBtn && reactionDisplay) {
           reactionBtn.addEventListener('click', () => {
             // Simple emoji picker
@@ -590,15 +626,31 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
               btn.textContent = emoji;
               btn.style.fontSize = '20px';
               btn.style.margin = '2px';
-              btn.addEventListener('click', () => {
+              btn.addEventListener('click', async () => {
+                // Save reaction to Firestore
+                if (msg.id) {
+                  try {
+                    await updateDoc(doc(messagesCollectionRef, msg.id), { reaction: emoji });
+                  } catch (err) {
+                    console.error('Failed to save reaction:', err);
+                  }
+                }
                 reactionDisplay.innerHTML = `<span style="font-size:22px;vertical-align:middle;">${emoji}</span> <button class="delete-reaction-btn" title="Delete Reaction" style="margin-left:8px;font-size:16px;padding:2px 6px;border:none;background:#f8d7da;color:#721c24;border-radius:4px;cursor:pointer;vertical-align:middle;">✖ Remove</button>`;
                 picker.remove();
                 // Attach delete handler immediately
                 const deleteBtn = reactionDisplay.querySelector('.delete-reaction-btn');
                 if (deleteBtn) {
-                  deleteBtn.addEventListener('click', (e) => {
+                  deleteBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     reactionDisplay.textContent = '';
+                    // Remove reaction from Firestore
+                    if (msg.id) {
+                      try {
+                        await updateDoc(doc(messagesCollectionRef, msg.id), { reaction: '' });
+                      } catch (err) {
+                        console.error('Failed to delete reaction:', err);
+                      }
+                    }
                   });
                 }
               });
@@ -609,14 +661,15 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
             const rect = reactionBtn.getBoundingClientRect();
             picker.style.left = `${rect.left}px`;
             picker.style.top = `${rect.bottom + window.scrollY}px`;
-            // Remove picker if clicking outside
+            // Remove picker if clicking outside or touch outside
             const removePicker = (e) => {
               if (!picker.contains(e.target)) picker.remove();
               document.removeEventListener('mousedown', removePicker);
+              document.removeEventListener('touchstart', removePicker);
             };
             document.addEventListener('mousedown', removePicker);
+            document.addEventListener('touchstart', removePicker);
           });
-          // Remove duplicate handler, only attach delete handler after setting reaction
         }
       }
 
@@ -770,6 +823,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           replyTo: data.replyTo && typeof data.replyTo === 'object' ? data.replyTo : null,
           isEdited: Boolean(data.editedAt),
           createdAtValue: getMessageCreatedAtValue(data),
+          reaction: typeof data.reaction === 'string' ? data.reaction : '',
         };
       })
       .sort((a, b) => a.createdAtValue - b.createdAtValue);
