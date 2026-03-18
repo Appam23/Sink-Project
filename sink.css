@@ -240,6 +240,7 @@
     border-radius: 50%;
     object-fit: cover;
     margin: 0 auto;
+    box-shadow: 20px 5px 7px rgba(0, 0, 0, 0.10);
     background: #f5f5f5;
 }
 
@@ -406,10 +407,7 @@ body {
     justify-content: space-between;
     width: 100%;
     align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 14px;
-    padding: 4px 2px 14px;
-    border-bottom: 1px solid #dde5ed;
+    margin-bottom: 20px;
 }
 
 .home-onboarding-modal {
@@ -618,7 +616,7 @@ body {
 }
 
 .bubble {
-    max-width: 85%;
+    max-width: 100%;
     border-radius: 8px;
     padding: 6px 8px;
     font-size: 0.84rem;
@@ -707,53 +705,36 @@ body {
 .home-left {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.home-profile-pic {
-    margin-bottom: 6px;
+    align-items: center;
 }
 
 .home-profile-pic img {
-    width: 96px;
-    height: 96px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     object-fit: cover;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.14);
-    border: 3px solid #f4f8fc;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
 
 .home-right {
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
-    width: auto;
-    flex: 0 0 auto;
+    width: 50%;
 }
 
 .home-user-meta {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0;
-}
-
-.home-top-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
 }
 
 .home-username {
-    font-size: 2rem;
-    font-weight: 700;
-    text-align: left;
-    margin: 0;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
+    font-size: 1.6em;
+    font-weight: 600;
+    align-self: flex-start;
+    margin-top: 8px;
 }
 
 .notifications-btn {
@@ -761,13 +742,10 @@ body {
     background: #59B9FF;
     color: #fff;
     border-radius: 999px;
-    height: 40px;
-    min-width: 62px;
-    padding: 0 12px;
+    padding: 6px 10px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    justify-content: center;
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
@@ -778,7 +756,7 @@ body {
 }
 
 .notifications-bell {
-    font-size: 22px;
+    font-size: 16px;
     line-height: 1;
 }
 
@@ -860,26 +838,17 @@ body {
 }
 
 .home-body {
-    margin-top: 8px;
+    margin-top: 16px;
     width: 100%;
     margin-bottom: 50px;
     padding-bottom: 20px;
 }
 
-.home-body h3 {
-    margin: 0 0 10px;
-    font-size: 2rem;
-}
-
-.home-body h3 + .apartment-code-display {
-    margin-bottom: 24px;
-}
-
 .apartment-code-display {
-    background: #f3f6fa;
-    border: 1px solid #e5ebf2;
-    padding: 10px 12px;
-    border-radius: 10px;
+    background: #f7f7f7;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
 }
 
 .roommates-list {
@@ -981,9 +950,11 @@ body {
 
 .settings-floating-btn {
     --settings-btn-bg: #59B9FF;
-    position: static;
-    width: 40px;
-    height: 40px;
+    position: absolute;
+    left: 24px;
+    bottom: 20px;
+    width: 52px;
+    height: 52px;
     padding: 0;
     box-sizing: border-box;
     border-radius: 50%;
@@ -1011,44 +982,14 @@ body {
     fill: #fff;
 }
 
-.home-left #edit-profile-btn.main-btn.small {
-    width: auto;
-    max-width: none;
-    min-width: 100px;
-    margin: 10px 0 0;
-    padding: 8px 16px;
-    border-radius: 999px;
-    box-shadow: 0 6px 14px rgba(89,185,255,0.24);
-}
-
-@media (max-width: 768px) {
-    .home-header {
-        gap: 10px;
-        padding: 2px 0 12px;
-    }
-
-    .home-profile-pic img {
-        width: 92px;
-        height: 92px;
-    }
-
-    .home-username {
-        font-size: 1.95rem;
-    }
-
-    .home-body h3 {
-        font-size: 1.40rem;
-    }
-}
-
 .settings-gear-hole {
     fill: var(--settings-btn-bg);
 }
 
 .settings-popup {
     position: absolute;
-    right: 16px;
-    top: 98px;
+    left: 24px;
+    bottom: 80px;
     min-width: 155px;
     background: #fff;
     border: 1px solid #d9d9d9;
@@ -1070,15 +1011,16 @@ body {
     }
 
     .container.home-container .settings-floating-btn {
-        position: static;
+        position: fixed;
+        left: 16px;
+        bottom: calc(76px + env(safe-area-inset-bottom));
         z-index: 930;
     }
 
     .container.home-container .settings-popup {
         position: fixed;
-        right: 16px;
-        top: 110px;
-        bottom: auto;
+        left: 16px;
+        bottom: calc(138px + env(safe-area-inset-bottom));
         z-index: 940;
     }
 }
@@ -1298,7 +1240,7 @@ button:hover, .main-btn:hover {
 .message {
     text-align: center;
     margin-top: 12px;
-    color: red;
+    color: #14591D; /* changed from red to calendar hover green */
 }
 
 /* Apartment code page styles */
@@ -2253,7 +2195,7 @@ button:hover, .main-btn:hover {
 .container.group-chat-container {
     padding: 0;
     overflow: hidden;
-    background: #f5f5f5;
+    background: #B288C0;
     color: #fff;
 }
 
@@ -2265,17 +2207,12 @@ button:hover, .main-btn:hover {
     flex: 1 1 auto;
     width: 100%;
     box-sizing: border-box;
-    background: #f5f5f5;
+    background: #B288C0;
     color: #fff;
 }
 
 .chat-header {
-    position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(98vw, 600px);
-    box-sizing: border-box;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2284,7 +2221,6 @@ button:hover, .main-btn:hover {
     background: #B288C0;
     color: #fff;
     border-bottom: 1px solid rgba(178,136,192,0.2);
-    z-index: 8;
 }
 
 .chat-header h2 {
@@ -2324,13 +2260,8 @@ button:hover, .main-btn:hover {
 }
 
 .chat-box {
-    position: fixed;
-    top: 84px;
-    bottom: calc(76px + env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(98vw, 600px);
-    box-sizing: border-box;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 12px;
     overflow-y: auto;
     background: #f5f5f5;
@@ -2430,18 +2361,14 @@ button:hover, .main-btn:hover {
     display: flex;
     order: 3;
     margin-top: auto;
-    position: fixed;
+    position: sticky;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(98vw, 600px);
-    box-sizing: border-box;
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
     border-top: 1px solid #e0e0e0;
     background: #fff;
     align-items: flex-end;
     gap: 10px;
-    z-index: 8;
+    z-index: 5;
 }
 
 .chat-compose-box {
@@ -2536,6 +2463,14 @@ button:hover, .main-btn:hover {
     color: #fff;
 }
 
+.chat-upload-status {
+    order: 2;
+    min-height: 18px;
+    padding: 6px 12px 4px;
+    color: #6d6d6d;
+    font-size: 0.85rem;
+}
+
 .chat-attachment-preview {
     display: none;
 }
@@ -2603,4 +2538,134 @@ button:hover, .main-btn:hover {
 hr{
     background-color: transparent;
     border-color: transparent;
+}
+
+/* Profile top-left back button (styled like group chat back button, but using profile colors) */
+.profile-back-btn {
+    position: fixed;
+    left: 12px;
+    top: calc(12px + env(safe-area-inset-top));
+    transform: translateY(0);
+    z-index: 1100;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    line-height: 1;
+    font-weight: 700;
+    color: #fff;
+    background: #59B9FF;             /* profile primary */
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    transition: background 0.12s ease, transform 0.08s ease;
+}
+
+/* hover / active mirrors profile secondary */
+.profile-back-btn:hover {
+    background: #3E78B2;             /* profile secondary */
+}
+.profile-back-btn:active {
+    transform: translateY(0) scale(0.97);
+}
+
+/* Save button positioned where the previous bottom back button used to be */
+#save-profile-btn,
+.save-profile-btn {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 1050;
+    width: min(420px, 86%);
+    max-width: 420px;
+    background: #59B9FF;             /* profile primary */
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(89,185,255,0.14);
+    transition: background 0.12s ease, transform 0.06s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Save hover uses profile secondary */
+#save-profile-btn:hover,
+.save-profile-btn:hover {
+    background: #3E78B2;
+    color: #fff;
+}
+
+/* on small screens avoid overlapping footer: hide or nudge into container if footer exists */
+@media (max-width: 768px) {
+    #save-profile-btn,
+    .save-profile-btn {
+        position: fixed;
+        left: auto;
+        right: 16px;
+        bottom: calc(84px + env(safe-area-inset-bottom));
+        width: 56px;
+        height: 56px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 0.9rem;
+    }
+}
+
+@media (min-width: 769px) {
+    /* desktop footer hover behaviour */
+    .profile-footer .footer-btn {
+        transition: background 0.15s ease, color 0.15s ease;
+        color: inherit;
+    }
+
+    /* Hover backgrounds (desktop only). Ensure icon/text becomes white for contrast. */
+    .profile-footer .footer-btn:nth-child(1):hover,
+    .footer-btn.home:hover,
+    .footer-btn[data-role="home"]:hover,
+    .footer-btn[data-page="home"]:hover {
+        background: #59b9ff;
+        color: #fff;
+    }
+
+    .profile-footer .footer-btn:nth-child(2):hover,
+    .footer-btn.calendar:hover,
+    .footer-btn[data-role="calendar"]:hover,
+    .footer-btn[data-page="calendar"]:hover {
+        background: #14591D;
+        color: #fff;
+    }
+
+    .profile-footer .footer-btn:nth-child(3):hover,
+    .footer-btn.tasks:hover,
+    .footer-btn[data-role="tasks"]:hover,
+    .footer-btn[data-page="tasks"]:hover {
+        background: #FFBF69;
+        color: #fff;
+    }
+
+    .profile-footer .footer-btn:nth-child(4):hover,
+    .footer-btn.chat:hover,
+    .footer-btn[data-role="chat"]:hover,
+    .footer-btn[data-page="chat"]:hover {
+        background: #E4B7E5;
+        color: #fff;
+    }
+
+    /* Ensure icons inside footer buttons inherit white on hover */
+    .profile-footer .footer-btn:hover .footer-icon,
+    .footer-btn:hover .footer-icon {
+        filter: none;
+        color: inherit;
+        fill: currentColor;
+    }
 }
