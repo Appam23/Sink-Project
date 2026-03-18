@@ -107,6 +107,10 @@ service cloud.firestore {
       allow read, write: if isApartmentMember(apartmentCode);
     }
 
+    match /apartments/{apartmentCode}/completedTasks/{taskId} {
+      allow read, write: if isApartmentMember(apartmentCode);
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

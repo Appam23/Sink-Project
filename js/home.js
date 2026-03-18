@@ -866,15 +866,19 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
 
 document.addEventListener('DOMContentLoaded', async function() {
   const container = document.getElementById('app-container');
-  if (container) {
+  if (!container) return;
+
+  try {
     const access = await requireApartmentMembershipAsync();
     if (!access || !access.apartmentCode) return;
+
     const userName = access.currentUser;
     const apartmentCode = access.apartmentCode;
     const apartmentData = await getApartmentByCode(apartmentCode);
-    renderHomePage(container, userName, apartmentCode, apartmentData).catch((error) => {
-      console.error('Unable to render home page:', error);
-      alert('Unable to load home page right now. Please refresh and try again.');
-    });
+    await renderHomePage(container, userName, apartmentCode, apartmentData);
+  } catch (error) {
+    console.error('Unable to render home page:', error);
+    container.innerHTML = '<div class="message">Unable to load home page right now. Please refresh and try again.</div>';
+    alert('Unable to load home page right now. Please refresh and try again.');
   }
 });
