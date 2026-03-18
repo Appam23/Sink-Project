@@ -19,7 +19,7 @@ export function attachFooter(container) {
         <span class="footer-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7ed957" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         </span>
-        <span class="footer-label" style="color: #7ed957;">Calender/Event</span>
+        <span class="footer-label" style="color: #7ed957;">Calendar/Event</span>
       </button>
       <button class="footer-btn" id="footer-task" title="Task">
         <span class="footer-icon">
