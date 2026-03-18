@@ -2281,7 +2281,7 @@ button:hover, .main-btn:hover {
     justify-content: center;
     min-height: 64px;
     padding: 10px 16px;
-    background: #B288C0;
+    background: #c266e1;
     color: #fff;
     border-bottom: 1px solid rgba(178,136,192,0.2);
     z-index: 8;
@@ -2300,8 +2300,8 @@ button:hover, .main-btn:hover {
     top: 50%;
     transform: translateY(-50%);
     border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.12);
-    color: #fff;
+    background: rgb(249, 249, 245);
+    color: #c266e1;
     font-size: 1rem;
     font-weight: 700;
     line-height: 1.1;

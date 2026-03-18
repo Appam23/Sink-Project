@@ -13,9 +13,9 @@
       "type": "image/png"
     },
     {
-      "src": "/ios_home_screen_logo.jpg",
+      "src": "/ios_home_screen_logo.png",
       "sizes": "180x180",
-      "type": "image/jpeg"
+      "type": "image/png"
     }
   ],
   "badges": [
