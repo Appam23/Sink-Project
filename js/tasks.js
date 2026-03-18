@@ -190,6 +190,15 @@ async function renderTasksPage(container, access) {
       <div class="task-column" data-room="Other">
         <div class="task-column-header"><h3>Other</h3><span class="task-count" id="other-count">0</span></div>
         <div class="task-list" id="other-list"></div>
+        <div class="completed-tasks-section" id="completed-tasks-section">
+          <button type="button" id="completed-tasks-toggle" class="completed-tasks-toggle" aria-expanded="false">
+            <span>Completed Tasks</span>
+            <span class="completed-tasks-arrow" aria-hidden="true"></span>
+          </button>
+          <div class="completed-tasks-panel" id="completed-tasks-panel">
+            <ul class="completed-tasks-list" id="completed-tasks-list"></ul>
+          </div>
+        </div>
       </div>
     </div>
     <button id="add-task-btn" class="add-event-btn" title="Add Task">+</button>
@@ -286,6 +295,9 @@ async function renderTasksPage(container, access) {
   const tasksCollectionRef = db && apartmentCode
     ? collection(db, 'apartments', apartmentCode, 'tasks')
     : null;
+  const completedTasksCollectionRef = db && apartmentCode
+    ? collection(db, 'apartments', apartmentCode, 'completedTasks')
+    : null;
 
   if (!tasksCollectionRef) {
     console.error('Tasks require Firebase Firestore and a valid apartment context.', firebaseInitError || null);
@@ -294,8 +306,17 @@ async function renderTasksPage(container, access) {
   }
 
   let tasks = [];
+  let completedTasks = [];
   let unsubscribeTasks = null;
+  let unsubscribeCompletedTasks = null;
   let showMyTasksOnly = false;
+
+  function getTimestampMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
 
   function isTaskVisibleForCurrentFilter(task) {
     if (!showMyTasksOnly) return true;
@@ -364,6 +385,65 @@ async function renderTasksPage(container, access) {
     await deleteDoc(doc(tasksCollectionRef, normalizedId));
   }
 
+  function formatCompletedAt(timestampValue) {
+    const millis = Number(timestampValue || 0);
+    if (!Number.isFinite(millis) || millis <= 0) return 'Just now';
+    return new Date(millis).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  function renderCompletedTasks() {
+    const completedTasksList = page.querySelector('#completed-tasks-list');
+    if (!completedTasksList) return;
+
+    completedTasksList.innerHTML = '';
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const recentCompletedTasks = completedTasks
+      .filter((task) => task.completedAtValue >= sevenDaysAgo)
+      .sort((a, b) => b.completedAtValue - a.completedAtValue);
+
+    if (!recentCompletedTasks.length) {
+      const item = document.createElement('li');
+      item.className = 'completed-task-item empty';
+      item.textContent = 'No completed tasks in the past 7 days.';
+      completedTasksList.appendChild(item);
+      return;
+    }
+
+    recentCompletedTasks.forEach((task) => {
+      const item = document.createElement('li');
+      item.className = 'completed-task-item';
+      const completedBy = task.completedByName || 'Roommate';
+      const completedWhen = formatCompletedAt(task.completedAtValue);
+      const taskRoom = task.room ? ` (${task.room})` : '';
+      item.textContent = `${task.title}${taskRoom} completed by ${completedBy} on ${completedWhen}`;
+      completedTasksList.appendChild(item);
+    });
+  }
+
+  async function completeTask(task) {
+    if (!task || !task.id) return;
+
+    await addDoc(completedTasksCollectionRef, {
+      taskId: String(task.id),
+      room: String(task.room || 'Other'),
+      title: String(task.title || ''),
+      assignee: String(task.assignee || ''),
+      assigneeName: String(task.assigneeName || ''),
+      date: String(task.date || ''),
+      time: String(task.time || ''),
+      completedBy: String(currentUser || ''),
+      completedByName: String(actorDisplayName || 'Roommate'),
+      completedAt: serverTimestamp(),
+    });
+
+    await deleteTask(task.id);
+  }
+
   function showImageModal(src) {
     if (!src) return;
     const m = document.createElement('div');
@@ -430,8 +510,8 @@ async function renderTasksPage(container, access) {
 
       const btn = row.querySelector('.complete-btn');
       btn.addEventListener('click', () => {
-        deleteTask(task.id).catch((error) => {
-          console.error('Task delete failed:', error);
+        completeTask(task).catch((error) => {
+          console.error('Task completion failed:', error);
           alert('Unable to complete this task right now. Please try again.');
         });
       });
@@ -504,10 +584,40 @@ async function renderTasksPage(container, access) {
     console.error('Unable to subscribe to tasks:', error);
   });
 
+  const completedTasksQuery = query(
+    completedTasksCollectionRef,
+    orderBy('completedAt', 'desc'),
+    limit(TASKS_QUERY_LIMIT)
+  );
+
+  unsubscribeCompletedTasks = onSnapshot(completedTasksQuery, (snapshot) => {
+    completedTasks = snapshot.docs.map((taskDoc) => {
+      const data = taskDoc.data() || {};
+      return {
+        id: taskDoc.id,
+        room: String(data.room || 'Other'),
+        title: String(data.title || ''),
+        assignee: String(data.assignee || ''),
+        assigneeName: String(data.assigneeName || ''),
+        completedBy: String(data.completedBy || ''),
+        completedByName: String(data.completedByName || ''),
+        completedAtValue: getTimestampMillis(data.completedAt),
+      };
+    });
+
+    renderCompletedTasks();
+  }, (error) => {
+    console.error('Unable to subscribe to completed tasks:', error);
+  });
+
   const cleanupListener = () => {
     if (typeof unsubscribeTasks === 'function') {
       unsubscribeTasks();
       unsubscribeTasks = null;
+    }
+    if (typeof unsubscribeCompletedTasks === 'function') {
+      unsubscribeCompletedTasks();
+      unsubscribeCompletedTasks = null;
     }
   };
   window.addEventListener('pagehide', cleanupListener, { once: true });
@@ -544,6 +654,16 @@ async function renderTasksPage(container, access) {
       }
       if (imagePreview) imagePreview.style.display = 'none';
       modal.classList.remove('hidden');
+    });
+  }
+
+  const completedTasksToggle = page.querySelector('#completed-tasks-toggle');
+  const completedTasksPanel = page.querySelector('#completed-tasks-panel');
+  if (completedTasksToggle && completedTasksPanel) {
+    completedTasksToggle.addEventListener('click', () => {
+      const willExpand = completedTasksToggle.getAttribute('aria-expanded') !== 'true';
+      completedTasksToggle.setAttribute('aria-expanded', willExpand ? 'true' : 'false');
+      completedTasksPanel.classList.toggle('open', willExpand);
     });
   }
 
@@ -632,6 +752,7 @@ async function renderTasksPage(container, access) {
   });
 
   renderTasks();
+  renderCompletedTasks();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
