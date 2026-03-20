@@ -1,5 +1,6 @@
 import { requireApartmentMembershipAsync } from './auth.js';
 import { initializeFirebaseServices } from './firebase.js';
+import { markChatAsSeen } from './footer.js';
 import { getApartmentProfilesMap } from './profiles.js';
 import {
   addDoc,
@@ -156,6 +157,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   container.innerHTML = '';
   container.classList.remove('has-footer');
   container.classList.add('group-chat-container');
+  markChatAsSeen(apartmentCode, userName);
 
   const { db, auth, error: firebaseInitError } = initializeFirebaseServices();
   const messagesCollectionRef = db && apartmentCode
@@ -824,6 +826,11 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         };
       })
       .sort((a, b) => a.createdAtValue - b.createdAtValue);
+
+    const newestMessage = messages.length ? messages[messages.length - 1] : null;
+    const newestCreatedAtValue = newestMessage && newestMessage.createdAtValue ? newestMessage.createdAtValue : Date.now();
+    markChatAsSeen(apartmentCode, userName, newestCreatedAtValue);
+
     renderMessages();
 
     if (keepPinnedToBottom || forceScrollToBottomOnNextRender) {
@@ -836,6 +843,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   });
 
   const cleanupListener = () => {
+    markChatAsSeen(apartmentCode, userName);
     if (typeof unsubscribeMessages === 'function') {
       unsubscribeMessages();
       unsubscribeMessages = null;
