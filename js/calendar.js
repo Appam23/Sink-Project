@@ -120,8 +120,8 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
       <div class="calendar-view-controls">
         <label for="calendar-view-select" class="calendar-view-label">View</label>
         <select id="calendar-view-select" class="calendar-view-select" aria-label="Calendar view">
+          <option value="Month" selected>Month</option>
           <option value="List">List</option>
-          <option value="Month">Month</option>
           <option value="Day">Day</option>
         </select>
         <select id="calendar-day-select" class="calendar-day-select hidden" aria-label="Select day"></select>
@@ -141,7 +141,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
   // Render events
   let events = [];
   let unsubscribeEvents = null;
-  let currentView = 'List';
+  let currentView = 'Month';
   let profilesByUser = {};
 
   const now = new Date();
@@ -570,7 +570,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
   function renderCurrentView() {
     if (!viewSelect || !daySelect) return;
 
-    currentView = viewSelect.value || 'List';
+    currentView = viewSelect.value || 'Month';
     if (currentView === 'Day') {
       daySelect.classList.remove('hidden');
       syncDaySelectOptions();
@@ -689,6 +689,8 @@ function showEventModal(
   eventToEdit = null
 ) {
   const isEditMode = !!(eventToEdit && eventToEdit.id);
+  const now = new Date();
+  const todayDateIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const selectedRoom = String(eventToEdit && eventToEdit.room ? eventToEdit.room : '');
   const knownRooms = ['Kitchen', 'Living Room', 'Bathroom'];
   const usesCustomRoom = !!selectedRoom && !knownRooms.includes(selectedRoom);
@@ -708,7 +710,7 @@ function showEventModal(
         <input type="text" id="event-name" placeholder="Event name" value="${String(eventToEdit && eventToEdit.name ? eventToEdit.name : '').replace(/"/g, '&quot;')}" required />
         
         <label>Date:</label>
-        <input type="date" id="event-date" value="${initialDateValue}" required />
+        <input type="date" id="event-date" value="${initialDateValue}" min="${todayDateIso}" required />
         
         <label>Time:</label>
         <input type="time" id="event-time" value="${initialTimeValue}" required />
@@ -774,6 +776,11 @@ function showEventModal(
       
       if (!name || !date || !time || !room) {
         alert('Please fill in all fields.');
+        return;
+      }
+
+      if (date < todayDateIso) {
+        alert('Please choose today or a future date. Past dates are not allowed.');
         return;
       }
 
