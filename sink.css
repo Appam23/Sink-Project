@@ -821,7 +821,8 @@ body {
 .home-left {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
+    text-align: left;
 }
 
 .home-profile-pic img {
@@ -846,11 +847,29 @@ body {
     gap: 8px;
 }
 
+.home-top-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .home-username {
     font-size: 1.6em;
     font-weight: 600;
     align-self: flex-start;
     margin-top: 8px;
+}
+
+.home-left #edit-profile-btn {
+    width: auto;
+    max-width: none;
+    margin: 8px 0 0;
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
 }
 
 .notifications-btn {
@@ -872,8 +891,14 @@ body {
 }
 
 .notifications-bell {
-    font-size: 16px;
+    font-size: 22px;
     line-height: 1;
+    display: inline-block;
+    transform-origin: center;
+}
+
+.notifications-btn:hover .notifications-bell {
+    animation: bellSwing 0.5s ease-in-out;
 }
 
 .notifications-count {
@@ -1066,11 +1091,9 @@ body {
 
 .settings-floating-btn {
     --settings-btn-bg: #59B9FF;
-    position: absolute;
-    left: 24px;
-    bottom: 20px;
-    width: 52px;
-    height: 52px;
+    position: static;
+    width: 44px;
+    height: 44px;
     padding: 0;
     box-sizing: border-box;
     border-radius: 50%;
@@ -1096,6 +1119,11 @@ body {
     height: 24px;
     display: block;
     fill: #fff;
+    transform-origin: center;
+}
+
+.settings-floating-btn:hover .settings-gear-icon {
+    animation: gearSpin 0.6s linear;
 }
 
 .settings-gear-hole {
@@ -1104,8 +1132,8 @@ body {
 
 .settings-popup {
     position: absolute;
-    left: 24px;
-    bottom: 80px;
+    right: 16px;
+    top: 98px;
     min-width: 155px;
     background: #fff;
     border: 1px solid #d9d9d9;
@@ -1127,16 +1155,13 @@ body {
     }
 
     .container.home-container .settings-floating-btn {
-        position: fixed;
-        left: 16px;
-        bottom: calc(76px + env(safe-area-inset-bottom));
-        z-index: 930;
+        position: static;
     }
 
     .container.home-container .settings-popup {
-        position: fixed;
-        left: 16px;
-        bottom: calc(138px + env(safe-area-inset-bottom));
+        position: absolute;
+        right: 16px;
+        top: 98px;
         z-index: 940;
     }
 }
@@ -1377,6 +1402,33 @@ button:hover, .main-btn:hover {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes gearSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes bellSwing {
+    0% {
+        transform: rotate(0deg);
+    }
+    25% {
+        transform: rotate(14deg);
+    }
+    50% {
+        transform: rotate(0deg);
+    }
+    75% {
+        transform: rotate(-14deg);
+    }
+    100% {
+        transform: rotate(0deg);
     }
 }
 
@@ -2397,6 +2449,12 @@ button:hover, .main-btn:hover {
 .container.group-chat-container {
     padding: 0;
     overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
     background: #B288C0;
     color: #fff;
 }
@@ -2408,13 +2466,15 @@ button:hover, .main-btn:hover {
     min-height: 0;
     flex: 1 1 auto;
     width: 100%;
+    overflow: hidden;
     box-sizing: border-box;
     background: #B288C0;
     color: #fff;
 }
 
 .chat-header {
-    position: relative;
+    position: sticky;
+    top: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2423,6 +2483,7 @@ button:hover, .main-btn:hover {
     background: #c266e1;
     color: #fff;
     border-bottom: 1px solid rgba(178,136,192,0.2);
+    z-index: 10;
 }
 
 .chat-header h2 {
@@ -2570,7 +2631,7 @@ button:hover, .main-btn:hover {
     background: #fff;
     align-items: flex-end;
     gap: 10px;
-    z-index: 5;
+    z-index: 12;
 }
 
 .chat-compose-box {

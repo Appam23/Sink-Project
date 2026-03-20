@@ -347,9 +347,6 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
     }
 
     chatBox.scrollTop = chatBox.scrollHeight;
-    page.scrollTop = page.scrollHeight;
-    container.scrollTop = container.scrollHeight;
-    window.scrollTo(0, document.body.scrollHeight);
   }
 
   function keepChatAtBottomFor(durationMs = 1200) {
