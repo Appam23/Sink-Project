@@ -240,7 +240,6 @@
     border-radius: 50%;
     object-fit: cover;
     margin: 0 auto;
-    box-shadow: 20px 5px 7px rgba(0, 0, 0, 0.10);
     background: #f5f5f5;
 }
 
@@ -2873,14 +2872,18 @@ hr{
     #save-profile-btn,
     .save-profile-btn {
         position: fixed;
-        left: auto;
         right: 16px;
-        bottom: calc(84px + env(safe-area-inset-bottom));
+        /* lowered slightly so the button sits nearer the bottom-right without overlapping content */
+        bottom: calc(96px + env(safe-area-inset-bottom));
+        left: auto;
         width: 56px;
         height: 56px;
         padding: 0;
         border-radius: 50%;
         font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 }
 
@@ -2931,4 +2934,116 @@ hr{
         color: inherit;
         fill: currentColor;
     }
+}
+
+/* ----- Adjust profile/back and save button positioning ----- */
+
+/* Desktop / large screens:
+   - Place the back button inside the white container at the top-left (absolute).
+   - Place the save button in the normal flow below the form so it doesn't cover content. */
+@media (min-width: 769px) {
+    .profile-back-btn {
+        /* position inside the white container */
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        transform: none;
+        /* keep visual style */
+        z-index: 1100;
+    }
+
+    #save-profile-btn,
+    .save-profile-btn {
+        /* place in the document flow (below the form) */
+        position: static !important;
+        left: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+        display: block;
+        width: min(420px, 86%);
+        max-width: 420px;
+        margin: 12px auto 24px; /* slight gap below form */
+        height: auto;
+        padding: 10px 16px;
+        border-radius: 10px;
+        box-shadow: 0 6px 24px rgba(89,185,255,0.14);
+    }
+}
+
+/* Mobile / small screens:
+   - Keep the back button fixed (screen top-left).
+   - Keep the save button floating bottom-right, but lower it so it sits further above any persistent footer. */
+@media (max-width: 768px) {
+    .profile-back-btn {
+        /* keep fixed for quick access on small devices */
+        position: fixed;
+        left: 12px;
+        top: calc(12px + env(safe-area-inset-top));
+        transform: translateY(0);
+        z-index: 1100;
+    }
+
+    #save-profile-btn,
+    .save-profile-btn {
+        position: fixed;
+        right: 16px;
+        /* lowered slightly so the button sits nearer the bottom-right without overlapping content */
+        bottom: calc(96px + env(safe-area-inset-bottom));
+        left: auto;
+        width: 56px;
+        height: 56px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Strong override: ensure mobile floating Save button sits at the bottom-right.
+   This is intentionally very specific and uses !important so it overrides prior
+   rules that centered or nudged the button. */
+@media (max-width: 768px) {
+  #save-profile-btn,
+  .save-profile-btn {
+    position: fixed !important;
+    right: 12px !important;
+    bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    transform: none !important;         /* cancel any translateX(-50%) centering */
+    width: 56px !important;
+    height: 56px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 1300 !important;            /* keep above persistent footer */
+  }
+}
+
+/* Strong override for small screens: make Save rectangular and larger for readability */
+@media (max-width: 768px) {
+  #save-profile-btn,
+  .save-profile-btn {
+    position: fixed !important;
+    right: 12px !important;
+    bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    transform: none !important;         /* cancel centering */
+    width: min(420px, 92%) !important;   /* wide but constrained */
+    max-width: 420px !important;
+    height: auto !important;
+    padding: 14px 18px !important;       /* larger touch target and readable text */
+    border-radius: 12px !important;      /* rectangular with rounded corners */
+    font-size: 1.05rem !important;       /* larger text for readability */
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 8px 30px rgba(89,185,255,0.16) !important;
+    z-index: 1300 !important;            /* keep above persistent footer */
+  }
 }
