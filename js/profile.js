@@ -121,6 +121,11 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
   const profileDiv = document.createElement('div');
   profileDiv.className = 'profile-page';
   profileDiv.innerHTML = `
+    <!-- top-left header with back button (uses profile-back-btn so it's fixed top-left) -->
+    <div class="profile-header">
+      <button type="button" id="profile-back-btn" class="profile-back-btn" aria-label="Back to home">← Back</button>
+    </div>
+
     <form class="profile-form" autocomplete="off">
       <div class="profile-pic-wrapper">
         <div class="profile-pic-container">
@@ -138,11 +143,12 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
         <input type="text" id="Room-Number" class="profile-input" placeholder="Room No." />
         <input type="text" id="Phone-Number" class="profile-input" placeholder="Phone Number" />
         <textarea id="Bio" class="profile-input bio-input" placeholder="Something about yourself..."></textarea>
-        <button type="button" id="back-to-apartment-btn" class="main-btn">Back</button>
-        <button type="submit" id="save-profile-btn" class="main-btn">Save Profile</button>
+
+        <!-- keep a hidden native submit so programmatic submission works reliably -->
+        <button type="submit" id="hidden-profile-submit" style="display:none;"></button>
       </div>
-      
     </form>
+
     <div id="profile-crop-modal" class="profile-crop-modal hidden" role="dialog" aria-modal="true" aria-label="Crop profile picture">
       <div class="profile-crop-panel">
         <h3>Crop Picture</h3>
@@ -156,6 +162,15 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
     </div>
   `;
   container.appendChild(profileDiv);
+
+  // Add persistent Save button at bottom of the page (replacing previous static placement)
+  const persistentSaveBtn = document.createElement('button');
+  persistentSaveBtn.type = 'button';
+  persistentSaveBtn.id = 'save-profile-btn';
+  // reuse save-profile-btn class (and main-btn if desired) so existing CSS styles apply
+  persistentSaveBtn.className = 'save-profile-btn main-btn';
+  persistentSaveBtn.textContent = 'Save';
+  container.appendChild(persistentSaveBtn);
 
   // Profile picture elements (ensure available before submit handler)
   const picInput = profileDiv.querySelector('#profile-pic-input');
@@ -466,7 +481,8 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
     if (iconSpan) iconSpan.style.display = 'none';
   }
 
-  const backToApartmentBtn = profileDiv.querySelector('#back-to-apartment-btn');
+  // Wiring the back button (now the top-left profile-back-btn)
+  const backToApartmentBtn = profileDiv.querySelector('#profile-back-btn');
   if (backToApartmentBtn) {
     backToApartmentBtn.addEventListener('click', () => {
       window.location.href = 'home.html';
@@ -517,6 +533,25 @@ export async function renderProfilePage(container, userName = 'You', apartmentCo
       }
 
       window.location.href = 'home.html';
+    });
+  }
+
+  // Wire the persistent Save button to submit the form
+  if (persistentSaveBtn) {
+    persistentSaveBtn.addEventListener('click', () => {
+      if (!profileForm) return;
+      // Prefer requestSubmit when available to run form validation and submit events
+      if (typeof profileForm.requestSubmit === 'function') {
+        profileForm.requestSubmit();
+      } else {
+        // Fallback to clicking a hidden submit button or dispatching submit
+        const nativeSubmit = profileForm.querySelector('button[type="submit"]');
+        if (nativeSubmit) {
+          nativeSubmit.click();
+        } else {
+          profileForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+      }
     });
   }
 
