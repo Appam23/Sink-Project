@@ -513,65 +513,106 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
     if (key === 'chat') {
       return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#b76cf4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
     }
-    return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#47d9ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>';
+    return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#59B9FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>';
   };
 
   const onboardingSlides = [
     {
       title: 'Welcome to Bunk Buddies!',
-      subtitle: 'Bunk Buddies helps roommates stay organized with one shared place for planning, tasks, and communication.',
-      featureTitle: 'What You Can Do',
-      featureDescription: 'Use the quick walkthrough to see the three main features your apartment will use daily.',
+      subtitle: 'Everything important for your apartment now lives in one clean home hub.',
+      featureTitle: 'Home Dashboard',
+      featureDescription: 'Quickly see your profile, apartment code, roommates, and top actions in one place.',
       icon: 'welcome',
       visualHtml: `
-        <div class="onboarding-mock-overview">
-          <div class="onboarding-pill">Plan together</div>
-          <div class="onboarding-pill">Share tasks</div>
-          <div class="onboarding-pill">Stay in sync</div>
-        </div>
-      `,
-    },
-    {
-      title: 'Calendar Feature',
-      subtitle: 'Track events, schedules, and important dates so everyone stays on the same page.',
-      featureTitle: 'Calendar',
-      featureDescription: 'Add shared events and quickly see what is happening this week.',
-      icon: 'calendar',
-      visualHtml: `
-        <div class="onboarding-mock-calendar">
-          <div class="onboarding-mock-calendar-head"></div>
-          <div class="onboarding-mock-calendar-grid">
-            <span></span><span class="active"></span><span></span><span></span>
-            <span></span><span></span><span class="active"></span><span></span>
+        <div class="onboarding-mock-home">
+          <div class="onboarding-home-top">
+            <div class="onboarding-home-user">
+              <span class="onboarding-home-avatar"></span>
+              <div class="onboarding-home-name-lines">
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+            <div class="onboarding-home-actions">
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="onboarding-home-code-card">
+            <div class="onboarding-home-code-row">
+              <span class="onboarding-home-code-label"></span>
+              <span class="onboarding-home-share-btn"></span>
+            </div>
+            <div class="onboarding-home-roommates">
+              <span></span><span></span><span></span><span></span>
+            </div>
           </div>
         </div>
       `,
     },
     {
-      title: 'Task Feature',
-      subtitle: 'Split chores and to-dos clearly, so everyone knows what to do next.',
-      featureTitle: 'Tasks',
-      featureDescription: 'Mark work as done and keep a visible list of what still needs attention.',
-      icon: 'tasks',
+      title: 'Calendar & Events',
+      subtitle: 'Switch views, add events fast, and keep everyone synced on timing.',
+      featureTitle: 'Calendar Page',
+      featureDescription: 'Month/day controls and event cards make planning clearer at a glance.',
+      icon: 'calendar',
       visualHtml: `
-        <div class="onboarding-mock-tasks">
-          <div class="task-row done"><span class="task-check"></span><span>Take out trash</span></div>
-          <div class="task-row"><span class="task-check"></span><span>Kitchen cleanup</span></div>
-          <div class="task-row"><span class="task-check"></span><span>Restock supplies</span></div>
+        <div class="onboarding-mock-calendar-wrap">
+          <div class="onboarding-calendar-toolbar">
+            <span class="onboarding-calendar-chip"></span>
+            <span class="onboarding-calendar-chip active"></span>
+          </div>
+          <div class="onboarding-mock-calendar-grid">
+            <span></span><span></span><span class="active"></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span class="active"></span><span></span><span></span>
+          </div>
+          <div class="onboarding-calendar-event-card">
+            <span></span>
+            <span></span>
+          </div>
         </div>
       `,
     },
     {
-      title: 'Chat Feature',
-      subtitle: 'Use group chat for quick updates, reminders, and apartment coordination.',
-      featureTitle: 'Chat',
-      featureDescription: 'Drop a fast message when plans change or when you need a roommate response.',
+      title: 'Tasks That Stay Clear',
+      subtitle: 'Assign chores, track due dates, and close work without confusion.',
+      featureTitle: 'Tasks Page',
+      featureDescription: 'Cards keep status, assignee, and completion state easy to scan.',
+      icon: 'tasks',
+      visualHtml: `
+        <div class="onboarding-mock-tasks">
+          <div class="onboarding-task-item done">
+            <span class="onboarding-task-check"></span>
+            <span class="onboarding-task-line"></span>
+            <span class="onboarding-task-tag"></span>
+          </div>
+          <div class="onboarding-task-item">
+            <span class="onboarding-task-check"></span>
+            <span class="onboarding-task-line"></span>
+            <span class="onboarding-task-tag"></span>
+          </div>
+          <div class="onboarding-task-item">
+            <span class="onboarding-task-check"></span>
+            <span class="onboarding-task-line short"></span>
+            <span class="onboarding-task-tag"></span>
+          </div>
+        </div>
+      `,
+    },
+    {
+      title: 'Group Chat That Flows',
+      subtitle: 'Share quick updates, reply in context, and keep apartment conversations moving.',
+      featureTitle: 'Chat Page',
+      featureDescription: 'Modern message bubbles and quick compose keep communication lightweight.',
       icon: 'chat',
       visualHtml: `
-        <div class="onboarding-mock-chat">
-          <div class="bubble left">Movie night at 8?</div>
-          <div class="bubble right">Works for me.</div>
-          <div class="bubble left">Awesome, see you then.</div>
+        <div class="onboarding-mock-chat-view">
+          <div class="onboarding-chat-header">
+            <span class="onboarding-chat-back"></span>
+          </div>
+          <div class="onboarding-chat-bubble left">Movie night at 8?</div>
+          <div class="onboarding-chat-bubble right">Works for me.</div>
+          <div class="onboarding-chat-bubble left">Perfect, see you then.</div>
         </div>
       `,
     },
