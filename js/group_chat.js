@@ -219,6 +219,33 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   let activeMessageForMenu = null;
   let activeMessageBubble = null;
 
+  const previousBodyOverflow = document.body.style.overflow;
+  const previousBodyOverscrollBehavior = document.body.style.overscrollBehavior;
+  const previousHtmlOverflow = document.documentElement.style.overflow;
+  const previousHtmlOverscrollBehavior = document.documentElement.style.overscrollBehavior;
+
+  document.body.style.overflow = 'hidden';
+  document.body.style.overscrollBehavior = 'none';
+  document.documentElement.style.overflow = 'hidden';
+  document.documentElement.style.overscrollBehavior = 'none';
+
+  function shouldAllowChatBoxScroll(eventTarget) {
+    return eventTarget instanceof Node && chatBox instanceof HTMLElement && chatBox.contains(eventTarget);
+  }
+
+  const blockGlobalTouchScroll = (event) => {
+    if (shouldAllowChatBoxScroll(event.target)) return;
+    event.preventDefault();
+  };
+
+  const blockGlobalWheelScroll = (event) => {
+    if (shouldAllowChatBoxScroll(event.target)) return;
+    event.preventDefault();
+  };
+
+  document.addEventListener('touchmove', blockGlobalTouchScroll, { passive: false });
+  document.addEventListener('wheel', blockGlobalWheelScroll, { passive: false });
+
   let pendingAttachmentData = null;
   let pendingAttachmentType = '';
   let pendingAttachmentName = '';
@@ -844,6 +871,12 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
 
   const cleanupListener = () => {
     markChatAsSeen(apartmentCode, userName);
+    document.removeEventListener('touchmove', blockGlobalTouchScroll);
+    document.removeEventListener('wheel', blockGlobalWheelScroll);
+    document.body.style.overflow = previousBodyOverflow;
+    document.body.style.overscrollBehavior = previousBodyOverscrollBehavior;
+    document.documentElement.style.overflow = previousHtmlOverflow;
+    document.documentElement.style.overscrollBehavior = previousHtmlOverscrollBehavior;
     if (typeof unsubscribeMessages === 'function') {
       unsubscribeMessages();
       unsubscribeMessages = null;

@@ -324,7 +324,50 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   // Apartment code display
   const codeDisplay = page.querySelector('#apartment-code-display');
   if (codeDisplay) {
-    codeDisplay.textContent = code ? code : 'No apartment yet. Please create or join from your profile.';
+    if (!code) {
+      codeDisplay.textContent = 'No apartment yet. Please create or join from your profile.';
+    } else {
+      codeDisplay.innerHTML = `
+        <div class="apartment-code-display-row">
+          <span class="apartment-code-value">${code}</span>
+          <button type="button" id="share-apartment-code-btn" class="apartment-code-share-btn">Share Code</button>
+        </div>
+      `;
+
+      const shareCodeBtn = codeDisplay.querySelector('#share-apartment-code-btn');
+      if (shareCodeBtn) {
+        shareCodeBtn.addEventListener('click', async () => {
+          const shareText = `Join my apartment on Sink with code: ${code}`;
+
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: 'Sink Apartment Invite',
+                text: shareText,
+              });
+              return;
+            } catch (error) {
+              // User-cancelled shares should not trigger fallback alerts.
+              if (error && (error.name === 'AbortError' || error.name === 'NotAllowedError')) {
+                return;
+              }
+            }
+          }
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+              await navigator.clipboard.writeText(code);
+              alert('Apartment code copied. Paste it into your message app.');
+              return;
+            } catch (_error) {
+              // Continue to manual fallback.
+            }
+          }
+
+          window.prompt('Copy and share this apartment code:', code);
+        });
+      }
+    }
   }
 
   // Roommates list

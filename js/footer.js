@@ -31,6 +31,10 @@ function getCreatedAtMillis(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function normalizeUserId(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 export async function markChatAsSeen(apartmentCode, userName, timestampMs = Date.now()) {
   if (!apartmentCode || !userName) return;
 
@@ -43,14 +47,13 @@ export async function markChatAsSeen(apartmentCode, userName, timestampMs = Date
   const previousSeen = chatSeenWriteCache.get(key) || 0;
   if (safeTimestamp <= previousSeen) return;
 
-  chatSeenWriteCache.set(key, safeTimestamp);
-
   try {
     await setDoc(getChatReadStateRef(db, apartmentCode, userName), {
       userName,
       lastSeenAt: safeTimestamp,
       updatedAt: Date.now(),
     }, { merge: true });
+    chatSeenWriteCache.set(key, safeTimestamp);
   } catch (errorWrite) {
     console.warn('Unable to persist chat seen state:', errorWrite);
   }
@@ -108,12 +111,13 @@ function initChatUnreadBadge(footer) {
 
     let latestLastSeen = 0;
     let latestMessages = [];
+    const normalizedCurrentUser = normalizeUserId(userName);
 
     const recomputeUnread = () => {
       let unreadCount = 0;
 
       latestMessages.forEach((data) => {
-        if (String(data.sender || '') === userName) return;
+        if (normalizeUserId(data.sender) === normalizedCurrentUser) return;
 
         const createdAtValue = getCreatedAtMillis(data.createdAt);
         if (createdAtValue > latestLastSeen) {

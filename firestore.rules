@@ -90,6 +90,11 @@ service cloud.firestore {
       allow read, write: if isApartmentMember(apartmentCode);
     }
 
+    match /apartments/{apartmentCode}/chatReadState/{userId} {
+      allow read, write: if isApartmentMember(apartmentCode)
+        && userId == currentUserId();
+    }
+
     match /apartments/{apartmentCode}/events/{eventId} {
       allow read: if isApartmentMember(apartmentCode);
       allow create: if isApartmentMember(apartmentCode)
