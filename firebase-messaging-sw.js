@@ -45,7 +45,7 @@ async function updateBadgeFromPayload(payload) {
 messaging.onBackgroundMessage(async (payload) => {
   const notification = payload && payload.notification ? payload.notification : {};
   const data = payload && payload.data ? payload.data : {};
-  const title = notification.title || data.title || 'Sink';
+  const title = notification.title || data.title || 'Bunk Buddies';
   const body = notification.body || data.body || 'You have a new update.';
   const link = data.link || 'home.html';
 

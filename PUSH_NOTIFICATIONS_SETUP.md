@@ -92,7 +92,7 @@ Example payload shape:
 ```json
 {
   "notification": {
-    "title": "Sink",
+    "title": "Bunk Buddies",
     "body": "Alex assigned you a task: Dishes"
   },
   "data": {

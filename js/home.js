@@ -337,12 +337,12 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
       const shareCodeBtn = codeDisplay.querySelector('#share-apartment-code-btn');
       if (shareCodeBtn) {
         shareCodeBtn.addEventListener('click', async () => {
-          const shareText = `Join my apartment on Sink with code: ${code}`;
+          const shareText = `Join my apartment on Bunk Buddies with code: ${code}`;
 
           if (navigator.share) {
             try {
               await navigator.share({
-                title: 'Sink Apartment Invite',
+                title: 'Bunk Buddies Apartment Invite',
                 text: shareText,
               });
               return;

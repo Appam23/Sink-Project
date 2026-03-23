@@ -13,9 +13,9 @@ import {
   onMessage,
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-messaging.js';
 
-const PREFERENCE_KEY_PREFIX = 'sink:notifications:enabled:';
-const DEVICE_ID_STORAGE_KEY = 'sink:notifications:device-id';
-const VAPID_KEY_STORAGE_KEY = 'sinkFcmVapidKey';
+const PREFERENCE_KEY_PREFIX = 'bunk-buddies:notifications:enabled:';
+const DEVICE_ID_STORAGE_KEY = 'bunk-buddies:notifications:device-id';
+const VAPID_KEY_STORAGE_KEY = 'bunkBuddiesFcmVapidKey';
 // One-time developer config: set your Firebase Web Push public key here.
 // End users should never need to provide this manually.
 const DEFAULT_VAPID_KEY = 'BENmimwabWI8AiuPu3_6H3h-D7zHBXI5EB5EyqpemJ2mVXlaJpf0314Dzr3LHU15UhkqjRgkbv-Lf9tMaTZI27I';
@@ -49,8 +49,8 @@ function getPushTokenDocId(userName) {
 }
 
 function getConfiguredVapidKey() {
-  if (typeof window !== 'undefined' && typeof window.SINK_FCM_VAPID_KEY === 'string') {
-    const fromWindow = window.SINK_FCM_VAPID_KEY.trim();
+  if (typeof window !== 'undefined' && typeof window.BUNK_BUDDIES_FCM_VAPID_KEY === 'string') {
+    const fromWindow = window.BUNK_BUDDIES_FCM_VAPID_KEY.trim();
     if (fromWindow) return fromWindow;
   }
 
