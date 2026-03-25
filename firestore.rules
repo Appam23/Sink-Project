@@ -67,6 +67,40 @@ service cloud.firestore {
         && request.resource.data.attendees is list;
     }
 
+    function isValidPushTokenData(data) {
+      return data.keys().hasOnly(['userName', 'token', 'enabled', 'platform', 'isStandalone', 'updatedAt'])
+        && data.keys().hasAll(['userName', 'token', 'enabled', 'updatedAt'])
+        && data.userName is string
+        && data.userName == currentUserId()
+        && data.token is string
+        && data.token.size() >= 20
+        && data.token.size() <= 4096
+        && data.enabled is bool
+        && data.updatedAt is timestamp
+        && (!('platform' in data) || data.platform is string)
+        && (!('isStandalone' in data) || data.isStandalone is bool);
+    }
+
+    function isOwnPushTokenRead() {
+      return resource.data.userName is string
+        && resource.data.userName == currentUserId();
+    }
+
+    function isOwnPushTokenCreate() {
+      return isValidPushTokenData(request.resource.data);
+    }
+
+    function isOwnPushTokenUpdate() {
+      return resource.data.userName is string
+        && resource.data.userName == currentUserId()
+        && isValidPushTokenData(request.resource.data);
+    }
+
+    function isOwnPushTokenDelete() {
+      return resource.data.userName is string
+        && resource.data.userName == currentUserId();
+    }
+
     match /apartments/{apartmentCode} {
       allow read: if isSignedIn();
       allow create: if isCreatingOwnApartment(apartmentCode);
@@ -83,7 +117,10 @@ service cloud.firestore {
     }
 
     match /apartments/{apartmentCode}/pushTokens/{tokenId} {
-      allow read, write: if isApartmentMember(apartmentCode);
+      allow get, list: if isApartmentMember(apartmentCode) && isOwnPushTokenRead();
+      allow create: if isApartmentMember(apartmentCode) && isOwnPushTokenCreate();
+      allow update: if isApartmentMember(apartmentCode) && isOwnPushTokenUpdate();
+      allow delete: if isApartmentMember(apartmentCode) && isOwnPushTokenDelete();
     }
 
     match /apartments/{apartmentCode}/chatMessages/{messageId} {
