@@ -45,12 +45,22 @@ function renderEvents() {
         const eventItem = document.createElement("div");
         eventItem.className = "event-item";
 
-        eventItem.innerHTML = `
-            <h3>${event.title}</h3>
-            <p>Date: ${event.date}</p>
-            <p>Time: ${event.startTime} - ${event.endTime}</p>
-            <p>Location: ${event.location}</p>
-        `;
+        const title = document.createElement('h3');
+        title.textContent = String(event.title || '');
+
+        const date = document.createElement('p');
+        date.textContent = `Date: ${String(event.date || '')}`;
+
+        const time = document.createElement('p');
+        time.textContent = `Time: ${String(event.startTime || '')} - ${String(event.endTime || '')}`;
+
+        const location = document.createElement('p');
+        location.textContent = `Location: ${String(event.location || '')}`;
+
+        eventItem.appendChild(title);
+        eventItem.appendChild(date);
+        eventItem.appendChild(time);
+        eventItem.appendChild(location);
 
         eventsList.appendChild(eventItem);
     });

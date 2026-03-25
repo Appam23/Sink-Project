@@ -20,6 +20,19 @@ import {
 const EVENTS_QUERY_LIMIT = 180;
 const DEFAULT_PROFILE_PICTURE = 'assets/default-profile.svg?v=20260310';
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}
+
 async function notifyRoommatesAboutNewEvent(eventName, actorUser, apartmentCode, members = []) {
   if (!apartmentCode || !Array.isArray(members)) return;
 
@@ -234,7 +247,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
   function renderEventRows(listContainer, eventItems, emptyMessage = 'No events yet. Add one to get started!') {
     if (!listContainer) return;
     if (!Array.isArray(eventItems) || eventItems.length === 0) {
-      listContainer.innerHTML = `<div class="no-events">${emptyMessage}</div>`;
+      listContainer.innerHTML = `<div class="no-events">${escapeHtml(emptyMessage)}</div>`;
       return;
     }
 
@@ -244,15 +257,15 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
       const eventRow = document.createElement('div');
       eventRow.className = 'event-row';
       eventRow.innerHTML = `
-        <div class="event-date">${event.date}</div>
+        <div class="event-date">${escapeHtml(event.date)}</div>
         <div class="event-details">
-          <div class="event-name">${event.name}</div>
-          <div class="event-location">${event.room}</div>
+          <div class="event-name">${escapeHtml(event.name)}</div>
+          <div class="event-location">${escapeHtml(event.room)}</div>
           <div class="event-attendees" aria-label="Attendees"></div>
           <div class="event-attendees-popover hidden" role="status" aria-live="polite"></div>
         </div>
         <div class="event-time">
-          <div>${event.time}</div>
+          <div>${escapeHtml(event.time)}</div>
           <button type="button" class="attend-event-btn">Attend</button>
           ${canManageEvent ? `
             <div class="event-actions">
@@ -481,7 +494,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
     monthView.innerHTML = `
       <div class="calendar-month-header">
         <button type="button" class="calendar-month-nav" id="calendar-prev-month" aria-label="Previous month">‹</button>
-        <div class="calendar-month-title">${monthLabel}</div>
+        <div class="calendar-month-title">${escapeHtml(monthLabel)}</div>
         <button type="button" class="calendar-month-nav" id="calendar-next-month" aria-label="Next month">›</button>
       </div>
       <div class="calendar-month-grid" id="calendar-month-grid"></div>
@@ -707,13 +720,13 @@ function showEventModal(
       <h3>${isEditMode ? 'Edit Event' : 'Add Event'}</h3>
       <form id="event-form">
         <label>Event Name:</label>
-        <input type="text" id="event-name" placeholder="Event name" value="${String(eventToEdit && eventToEdit.name ? eventToEdit.name : '').replace(/"/g, '&quot;')}" required />
+        <input type="text" id="event-name" placeholder="Event name" value="${escapeAttr(eventToEdit && eventToEdit.name ? eventToEdit.name : '')}" required />
         
         <label>Date:</label>
-        <input type="date" id="event-date" value="${initialDateValue}" min="${todayDateIso}" required />
+        <input type="date" id="event-date" value="${escapeAttr(initialDateValue)}" min="${escapeAttr(todayDateIso)}" required />
         
         <label>Time:</label>
-        <input type="time" id="event-time" value="${initialTimeValue}" required />
+        <input type="time" id="event-time" value="${escapeAttr(initialTimeValue)}" required />
         
         <label>Room:</label>
         <select id="event-room" required>
@@ -724,7 +737,7 @@ function showEventModal(
           <option value="Custom" ${initialRoomChoice === 'Custom' ? 'selected' : ''}>Custom</option>
         </select>
         
-        <input type="text" id="event-custom-room" placeholder="Enter custom room name" value="${usesCustomRoom ? selectedRoom.replace(/"/g, '&quot;') : ''}" style="display:${initialRoomChoice === 'Custom' ? 'block' : 'none'};" ${initialRoomChoice === 'Custom' ? 'required' : ''} />
+        <input type="text" id="event-custom-room" placeholder="Enter custom room name" value="${escapeAttr(usesCustomRoom ? selectedRoom : '')}" style="display:${initialRoomChoice === 'Custom' ? 'block' : 'none'};" ${initialRoomChoice === 'Custom' ? 'required' : ''} />
         
         <button type="submit" class="main-btn">${isEditMode ? 'Save Changes' : 'Add Event'}</button>
       </form>

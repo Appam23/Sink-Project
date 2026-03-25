@@ -11,6 +11,16 @@ function normalizeUserName(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+const ALLOWED_NOTIFICATION_LINKS = new Set([
+  'index.html',
+  'home.html',
+  'tasks.html',
+  'calendar.html',
+  'group_chat.html',
+  'profile.html',
+  'apartment_code.html',
+]);
+
 function isTokenInvalid(errorCode) {
   return errorCode === 'messaging/registration-token-not-registered'
     || errorCode === 'messaging/invalid-registration-token';
@@ -33,7 +43,15 @@ async function getUnreadNotificationCount(apartmentCode, userName) {
 function toAbsoluteOrRelativeLink(linkValue) {
   const fallback = 'home.html';
   const raw = String(linkValue || '').trim();
-  return raw || fallback;
+  if (!raw) return fallback;
+
+  // Only allow known in-app routes to prevent phishing/open redirect links.
+  const basePath = raw.split('?')[0].split('#')[0].replace(/^\/+/, '');
+  if (!ALLOWED_NOTIFICATION_LINKS.has(basePath)) {
+    return fallback;
+  }
+
+  return raw;
 }
 
 exports.sendPushOnNotificationCreated = onDocumentCreated(

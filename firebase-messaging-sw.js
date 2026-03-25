@@ -14,6 +14,31 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
+const ALLOWED_NOTIFICATION_LINKS = new Set([
+  'index.html',
+  'home.html',
+  'tasks.html',
+  'calendar.html',
+  'group_chat.html',
+  'profile.html',
+  'apartment_code.html',
+]);
+
+function getSafeNotificationLink(linkValue) {
+  const fallback = 'home.html';
+  const raw = String(linkValue || '').trim();
+  if (!raw) return fallback;
+
+  try {
+    const parsed = new URL(raw, self.location.origin);
+    if (parsed.origin !== self.location.origin) return fallback;
+    const normalizedPath = parsed.pathname.replace(/^\/+/, '') || fallback;
+    if (!ALLOWED_NOTIFICATION_LINKS.has(normalizedPath)) return fallback;
+    return `${normalizedPath}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
+}
 
 async function updateBadgeFromPayload(payload) {
   const data = payload && payload.data ? payload.data : {};
@@ -47,7 +72,7 @@ messaging.onBackgroundMessage(async (payload) => {
   const data = payload && payload.data ? payload.data : {};
   const title = notification.title || data.title || 'Bunk Buddies';
   const body = notification.body || data.body || 'You have a new update.';
-  const link = data.link || 'home.html';
+  const link = getSafeNotificationLink(data.link);
 
   await updateBadgeFromPayload(payload);
 
@@ -65,7 +90,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const targetLink = event.notification && event.notification.data && event.notification.data.link
-    ? String(event.notification.data.link)
+    ? getSafeNotificationLink(event.notification.data.link)
     : 'home.html';
 
   event.waitUntil((async () => {

@@ -27,6 +27,74 @@ const EMERGENCY_MIN_IMAGE_QUALITY = 0.25;
 const EMERGENCY_TARGET_IMAGE_DATA_URL_LENGTH = 120000;
 const TASKS_QUERY_LIMIT = 180;
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    if (parsed.origin !== window.location.origin) return '';
+    return parsed.href;
+  } catch {
+    return '';
+  }
+}
+
+function getTodayIsoLocal() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseLocalDateTime(dateValue, timeValue = '') {
+  const dateText = String(dateValue || '').trim();
+  const match = dateText.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+
+  const timeText = String(timeValue || '').trim();
+  if (!timeText) {
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  const timeMatch = timeText.match(/^(\d{2}):(\d{2})$/);
+  if (!timeMatch) return null;
+  const hours = Number(timeMatch[1]);
+  const minutes = Number(timeMatch[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+}
+
+function isPastTaskDateTime(dateValue, timeValue = '') {
+  const dateTime = parseLocalDateTime(dateValue, timeValue);
+  if (!dateTime || Number.isNaN(dateTime.getTime())) return false;
+
+  if (!String(timeValue || '').trim()) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    return dateTime < todayStart;
+  }
+
+  return dateTime.getTime() < Date.now();
+}
+
 function isQuotaError(error) {
   if (!error) return false;
   return error.name === 'QuotaExceededError' || error.code === 22 || error.code === 1014;
@@ -445,13 +513,14 @@ async function renderTasksPage(container, access) {
   }
 
   function showImageModal(src) {
-    if (!src) return;
+    const safeSrc = sanitizeImageUrl(src);
+    if (!safeSrc) return;
     const m = document.createElement('div');
     m.className = 'event-modal';
     m.innerHTML = `
       <div class="event-modal-content">
         <button id="close-img-modal" class="close-modal">&times;</button>
-        <img src="${src}" class="image-view" alt="Task image" />
+        <img src="${escapeHtml(safeSrc)}" class="image-view" alt="Task image" />
       </div>
     `;
     container.appendChild(m);
@@ -490,20 +559,21 @@ async function renderTasksPage(container, access) {
       const row = document.createElement('div');
       row.className = 'event-row task-row';
       row.setAttribute('data-task-id', String(task.id));
-      const thumbHtml = task.image ? `<img class="task-thumb" src="${task.image}" alt="thumb"/>` : '';
-      const viewBtnHtml = task.image ? `<button class="view-btn task-view-btn">View</button>` : '';
+      const safeImage = sanitizeImageUrl(task.image);
+      const thumbHtml = safeImage ? `<img class="task-thumb" src="${escapeHtml(safeImage)}" alt="thumb"/>` : '';
+      const viewBtnHtml = safeImage ? `<button class="view-btn task-view-btn">View</button>` : '';
       const assigneeLabel = task.assigneeName || getAssigneeDisplayName(task.assignee);
       const safeTime = String(task.time || '').trim();
       const taskTime = safeTime ? safeTime : 'No time';
       row.innerHTML = `
-        <div class="event-date"><div class="due-label">Due by</div><div class="due-date">${task.date}</div></div>
+        <div class="event-date"><div class="due-label">Due by</div><div class="due-date">${escapeHtml(task.date)}</div></div>
         <div class="event-details">
           ${thumbHtml}
-          <div class="event-name">${task.title}</div>
-          <div class="event-location">${task.room} • ${assigneeLabel}</div>
+          <div class="event-name">${escapeHtml(task.title)}</div>
+          <div class="event-location">${escapeHtml(task.room)} • ${escapeHtml(assigneeLabel)}</div>
         </div>
         <div class="event-time">
-          <div class="task-time-value">${taskTime}</div>
+          <div class="task-time-value">${escapeHtml(taskTime)}</div>
           <div class="task-actions">${viewBtnHtml}<button class="complete-btn">Complete</button></div>
         </div>
       `;
@@ -517,7 +587,7 @@ async function renderTasksPage(container, access) {
       });
 
       const viewBtn = row.querySelector('.view-btn');
-      if (viewBtn) viewBtn.addEventListener('click', () => showImageModal(task.image));
+      if (viewBtn) viewBtn.addEventListener('click', () => showImageModal(safeImage));
 
       const list = rooms[task.room] || rooms['Other'];
       list.appendChild(row);
@@ -546,7 +616,10 @@ async function renderTasksPage(container, access) {
     const params = new URLSearchParams(window.location.search);
     const targetTaskId = params.get('taskId');
     if (targetTaskId) {
-      const targetTask = page.querySelector(`.task-row[data-task-id="${targetTaskId}"]`);
+      const selectorTaskId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+        ? CSS.escape(targetTaskId)
+        : String(targetTaskId).replace(/(["\\])/g, '\\$1');
+      const targetTask = page.querySelector(`.task-row[data-task-id="${selectorTaskId}"]`);
       if (targetTask) {
         targetTask.scrollIntoView({ behavior: 'smooth', block: 'center' });
         targetTask.classList.add('task-target');
@@ -641,7 +714,10 @@ async function renderTasksPage(container, access) {
     addBtn.addEventListener('click', () => {
       // reset modal fields
       modal.querySelector('#task-name').value = '';
-      modal.querySelector('#task-date').value = '';
+      const dateInput = modal.querySelector('#task-date');
+      const todayIso = getTodayIsoLocal();
+      dateInput.min = todayIso;
+      dateInput.value = todayIso;
       modal.querySelector('#task-time').value = '';
       modal.querySelector('#task-room').value = lastRoom;
       modal.querySelector('#task-custom-room').style.display = 'none';
@@ -699,11 +775,28 @@ async function renderTasksPage(container, access) {
     const assigneeName = assignee === 'Everyone' ? 'Everyone' : getAssigneeDisplayName(assignee);
     if (room === 'Custom') room = custom || 'Other';
 
+    if (!name || !date || !room) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    if (isPastTaskDateTime(date, time)) {
+      const hasTime = String(time || '').trim().length > 0;
+      alert(hasTime
+        ? 'Cannot assign a task in the past. Choose a future date/time.'
+        : 'Cannot assign a task to a day that has already passed.');
+      return;
+    }
+
     // Format date and time for display similar to calendar
-    const dateObj = new Date(date);
-    const displayDate = isNaN(dateObj.getTime()) ? date : ((dateObj.getMonth() + 1).toString().padStart(2, '0') + '/' + dateObj.getDate().toString().padStart(2, '0'));
-    const timeObj = new Date(`2000-01-01T${time}`);
-    const displayTime = isNaN(timeObj.getTime()) ? time : timeObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateObj = parseLocalDateTime(date, '00:00');
+    const displayDate = !dateObj || Number.isNaN(dateObj.getTime())
+      ? date
+      : `${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}`;
+    const timeObj = parseLocalDateTime('2000-01-01', time);
+    const displayTime = !timeObj || Number.isNaN(timeObj.getTime())
+      ? time
+      : timeObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
     let imageToSave = imageData;
     try {

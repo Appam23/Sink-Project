@@ -41,6 +41,59 @@ const SWIPE_BACK_MIN_DISTANCE_PX = 90;
 const SWIPE_BACK_MAX_VERTICAL_DRIFT_PX = 70;
 const SWIPE_BACK_MAX_DURATION_MS = 700;
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeFileUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    if (parsed.origin !== window.location.origin) return '';
+    return parsed.href;
+  } catch {
+    return '';
+  }
+}
+
+function renderReactionDisplayWithDelete(reactionDisplay, reactionValue, onDelete) {
+  if (!reactionDisplay) return;
+  const emoji = String(reactionValue || '').trim();
+  reactionDisplay.textContent = '';
+  if (!emoji) return;
+
+  const emojiSpan = document.createElement('span');
+  emojiSpan.style.fontSize = '22px';
+  emojiSpan.style.verticalAlign = 'middle';
+  emojiSpan.textContent = emoji;
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-reaction-btn';
+  deleteBtn.title = 'Delete Reaction';
+  deleteBtn.style.marginLeft = '8px';
+  deleteBtn.style.fontSize = '16px';
+  deleteBtn.style.padding = '2px 6px';
+  deleteBtn.style.border = 'none';
+  deleteBtn.style.background = '#f8d7da';
+  deleteBtn.style.color = '#721c24';
+  deleteBtn.style.borderRadius = '4px';
+  deleteBtn.style.cursor = 'pointer';
+  deleteBtn.style.verticalAlign = 'middle';
+  deleteBtn.textContent = 'Remove';
+  deleteBtn.addEventListener('click', onDelete);
+
+  reactionDisplay.appendChild(emojiSpan);
+  reactionDisplay.appendChild(deleteBtn);
+}
+
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -560,26 +613,27 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       const attachmentData = msg.attachmentUrl || msg.attachmentData || msg.file || null;
       const attachmentType = msg.attachmentType || '';
       const attachmentName = msg.attachmentName || 'Attached File';
+      const safeAttachmentData = sanitizeFileUrl(attachmentData);
       const isImageAttachment = Boolean(attachmentData) && attachmentType.startsWith('image/');
       const profileDisplayName = getProfileDisplayName(profiles[msg.sender]);
       const senderLabel = msg.senderDisplayName || profileDisplayName || formatFallbackName(msg.sender);
       const replyContext = msg.replyTo && typeof msg.replyTo === 'object' ? msg.replyTo : null;
       const editedLabelHtml = msg.isEdited ? '<span class="message-edited">edited</span>' : '';
 
-      const attachmentHtml = attachmentData
+      const attachmentHtml = safeAttachmentData
         ? (isImageAttachment
-          ? `<img src="${attachmentData}" alt="${attachmentName}" class="chat-attachment-image" style="max-width:220px; width:100%; border-radius:8px;" />`
-          : `<a href="${attachmentData}" target="_blank" rel="noopener noreferrer" download="${attachmentName}">${attachmentName}</a>`)
+          ? `<img src="${escapeHtml(safeAttachmentData)}" alt="${escapeHtml(attachmentName)}" class="chat-attachment-image" style="max-width:220px; width:100%; border-radius:8px;" />`
+          : `<a href="${escapeHtml(safeAttachmentData)}" target="_blank" rel="noopener noreferrer" download="${escapeHtml(attachmentName)}">${escapeHtml(attachmentName)}</a>`)
         : '';
 
       const messageBubble = document.createElement('div');
       messageBubble.className = `message-bubble ${msg.sender === userName ? 'sent' : 'received'}`;
       messageBubble.innerHTML = `
-        <img src="${senderPic}" class="message-pic" alt="Sender profile picture" />
+        <img src="${escapeHtml(senderPic)}" class="message-pic" alt="Sender profile picture" />
         <div class="message-content">
-          <span class="message-sender">${senderLabel}</span>
+          <span class="message-sender">${escapeHtml(senderLabel)}</span>
           ${replyContext ? `<div class="message-reply-context"><span class="message-reply-sender"></span><p class="message-reply-text"></p></div>` : ''}
-          ${msg.text ? `<p>${msg.text}</p>` : ''}
+          ${msg.text ? `<p>${escapeHtml(msg.text)}</p>` : ''}
           ${editedLabelHtml}
           ${attachmentHtml}
           ${msg.sender !== userName ? `<button class="reaction-btn" title="Add Reaction" style="display:none;">😊</button><span class="reaction-display"></span>` : ''}
@@ -620,21 +674,17 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         }, { passive: true });
         // Show persisted reaction if present
         if (reactionDisplay && msg.reaction) {
-          reactionDisplay.innerHTML = `<span style="font-size:22px;vertical-align:middle;">${msg.reaction}</span> <button class="delete-reaction-btn" title="Delete Reaction" style="margin-left:8px;font-size:16px;padding:2px 6px;border:none;background:#f8d7da;color:#721c24;border-radius:4px;cursor:pointer;vertical-align:middle;">✖ Remove</button>`;
-          const deleteBtn = reactionDisplay.querySelector('.delete-reaction-btn');
-          if (deleteBtn) {
-            deleteBtn.addEventListener('click', async (e) => {
-              e.stopPropagation();
-              reactionDisplay.textContent = '';
-              if (msg.id) {
-                try {
-                  await updateDoc(doc(messagesCollectionRef, msg.id), { reaction: '' });
-                } catch (err) {
-                  console.error('Failed to delete reaction:', err);
-                }
+          renderReactionDisplayWithDelete(reactionDisplay, msg.reaction, async (e) => {
+            e.stopPropagation();
+            reactionDisplay.textContent = '';
+            if (msg.id) {
+              try {
+                await updateDoc(doc(messagesCollectionRef, msg.id), { reaction: '' });
+              } catch (err) {
+                console.error('Failed to delete reaction:', err);
               }
-            });
-          }
+            }
+          });
         }
         if (reactionBtn && reactionDisplay) {
           reactionBtn.addEventListener('click', () => {
@@ -661,24 +711,19 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
                     console.error('Failed to save reaction:', err);
                   }
                 }
-                reactionDisplay.innerHTML = `<span style="font-size:22px;vertical-align:middle;">${emoji}</span> <button class="delete-reaction-btn" title="Delete Reaction" style="margin-left:8px;font-size:16px;padding:2px 6px;border:none;background:#f8d7da;color:#721c24;border-radius:4px;cursor:pointer;vertical-align:middle;">✖ Remove</button>`;
-                picker.remove();
-                // Attach delete handler immediately
-                const deleteBtn = reactionDisplay.querySelector('.delete-reaction-btn');
-                if (deleteBtn) {
-                  deleteBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    reactionDisplay.textContent = '';
-                    // Remove reaction from Firestore
-                    if (msg.id) {
-                      try {
-                        await updateDoc(doc(messagesCollectionRef, msg.id), { reaction: '' });
-                      } catch (err) {
-                        console.error('Failed to delete reaction:', err);
-                      }
+                renderReactionDisplayWithDelete(reactionDisplay, emoji, async (e) => {
+                  e.stopPropagation();
+                  reactionDisplay.textContent = '';
+                  // Remove reaction from Firestore
+                  if (msg.id) {
+                    try {
+                      await updateDoc(doc(messagesCollectionRef, msg.id), { reaction: '' });
+                    } catch (err) {
+                      console.error('Failed to delete reaction:', err);
                     }
-                  });
-                }
+                  }
+                });
+                picker.remove();
               });
               picker.appendChild(btn);
             });
