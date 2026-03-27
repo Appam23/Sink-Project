@@ -412,20 +412,20 @@
 
 body {
     font-family: Arial, Helvetica, sans-serif;
-    background: #e3e4ef;
+    background: #ffffff;
     margin: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 
-.container,
-.container.task-container,
-.container.calendar-container {
-    background: #eceeef;
+.container {
+    background: #ffffff;
     /* ensure at least 20px between content and footer */
     padding: 32px 24px 0px;
     border-radius: 8px;
@@ -527,23 +527,29 @@ body {
     position: relative;
 }
 
+.container.home-container {
+    overflow: hidden;
+}
+
+.container.home-container .home-page {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.container.home-container .home-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-bottom: 0;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
 @media (min-width: 769px) {
-    .container.home-container {
-        overflow: hidden;
-    }
-
-    .container.home-container .home-page {
-        height: 100%;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-
     .container.home-container .home-body {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-        padding-bottom: 84px;
+        padding-bottom: 96px;
     }
 }
 
@@ -1183,8 +1189,8 @@ body {
 .home-body {
     margin-top: 16px;
     width: 100%;
-    margin-bottom: 50px;
-    padding-bottom: 20px;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
 .apartment-code-display {
@@ -1465,9 +1471,10 @@ body {
 
 @media (max-width: 480px) {
     .container {
-        padding: 20px 8px;
-        max-width: 98vw;
-        min-width: unset;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        padding: 20px 14px 0;
     }
     h2 {
         font-size: 1.3em;
