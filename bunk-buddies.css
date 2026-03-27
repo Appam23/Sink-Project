@@ -87,6 +87,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .footer-icon {
@@ -1493,6 +1495,19 @@ input, .bio-input {
     display: block;
     transition: background 0.2s;
 }
+.chat-message-input {
+    width: 90%;
+    padding: 11px;
+    border: 1px solid #ccc;
+    background: transparent;
+    color: #080808;
+    border-radius: 0;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 0 auto;
+    display: block;
+    transition: background 0.2s;
+}
 .profile-form {
          width: 100%;
          max-width: 100%;
@@ -1817,28 +1832,32 @@ button:hover, .main-btn:hover {
     flex-direction: column;
 }
 
+.container.calendar-container {
+    overflow: hidden;
+}
+
+.container.calendar-container .calendar-page {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.container.calendar-container .calendar-view-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+.container.calendar-container .events-list {
+    max-height: none;
+    margin-bottom: 0;
+}
+
 @media (min-width: 769px) {
-    .container.calendar-container {
-        overflow: hidden;
-    }
-
-    .container.calendar-container .calendar-page {
-        height: 100%;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-
     .container.calendar-container .calendar-view-content {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
         padding-bottom: 96px;
-    }
-
-    .container.calendar-container .events-list {
-        max-height: none;
-        margin-bottom: 0;
     }
 }
 
@@ -1971,10 +1990,10 @@ button:hover, .main-btn:hover {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-bottom: 100px;
+    margin-bottom: 0;
     padding-right: 10px;
     overflow-y: auto;
-    max-height: 60vh;
+    max-height: none;
 }
 
 @media (min-width: 700px) {
@@ -2003,6 +2022,17 @@ button:hover, .main-btn:hover {
 .event-row:hover {
     box-shadow: 0 4px 10px rgba(0,0,0,0.12);
     background: #fff;
+}
+
+.previous-event-row {
+    min-height: 88px;
+    height: auto;
+    grid-template-columns: 60px 1fr 84px;
+}
+
+.previous-event-row:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    background: #f9f9f9;
 }
 
 .event-date {
@@ -2666,6 +2696,37 @@ button:hover, .main-btn:hover {
     color: #fff;
 }
 
+/* Modal submit buttons should follow each page palette, not global blue. */
+.container.calendar-container #event-form .main-btn {
+    background: #14591D;
+    color: #fff;
+}
+
+.container.calendar-container #event-form .main-btn:hover {
+    background: #0A210F;
+    color: #fff;
+}
+
+.container.calendar-container #event-form .main-btn:active {
+    background: #0A210F;
+    color: #fff;
+}
+
+.container.tasks-container #event-form .main-btn {
+    background: #FF9F1C;
+    color: #fff;
+}
+
+.container.tasks-container #event-form .main-btn:hover {
+    background: #CC7F16;
+    color: #fff;
+}
+
+.container.tasks-container #event-form .main-btn:active {
+    background: #CC7F16;
+    color: #fff;
+}
+
 /* Group chat page styles */
 .container.group-chat-container {
     padding: 0;
@@ -2870,7 +2931,6 @@ button:hover, .main-btn:hover {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 6px;
     border: 1px solid #ccc;
     border-radius: 8px;
     background: #fff;
@@ -3165,6 +3225,29 @@ hr{
         filter: none;
         color: inherit;
         fill: currentColor;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Match mobile tap feedback with desktop hover palette. */
+    .profile-footer .footer-btn:nth-child(1):active {
+        background: #59b9ff;
+        color: #fff;
+    }
+
+    .profile-footer .footer-btn:nth-child(2):active {
+        background: #14591D;
+        color: #fff;
+    }
+
+    .profile-footer .footer-btn:nth-child(3):active {
+        background: #FFBF69;
+        color: #fff;
+    }
+
+    .profile-footer .footer-btn:nth-child(4):active {
+        background: #E4B7E5;
+        color: #fff;
     }
 }
 

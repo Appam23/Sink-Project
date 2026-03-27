@@ -243,7 +243,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
           <button type="button" id="chat-reply-cancel" class="chat-reply-cancel" aria-label="Cancel reply">×</button>
         </div>
         <div id="chat-attachment-preview" class="chat-attachment-preview hidden"></div>
-        <input type="text" id="chat-message-input" placeholder="Type a message..." />
+        <input type="text" id="chat-message-input" class="chat-message-input" placeholder="Type a message..." />
       </div>
       <input type="file" id="chat-file-input" style="display: none;" />
       <button type="button" id="attach-file-btn">📎</button>
