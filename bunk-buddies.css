@@ -420,23 +420,31 @@ body {
     justify-content: center;
     min-height: 100vh;
 }
-.container {
-    background: hsl(0, 100%, 99%);
+
+
+.container,
+.container.task-container,
+.container.calendar-container {
+    background: #eceeef;
     /* ensure at least 20px between content and footer */
     padding: 32px 24px 0px;
-        border-radius: 8px;
-        box-shadow: 0 6px 24px rgba(0,0,0,0.15);
-        width: 98%;
-        max-width: 600px;
-        min-width: 280px;
-        min-height: 85vh;
-        max-height: 95vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        box-sizing: border-box;
-        position: relative;
-        overflow-y: auto;
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    width: 98%;
+    max-width: 600px;
+    min-width: 280px;
+    min-height: 85vh;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    position: relative;
+    overflow-y: auto;
+}
+
+.container.home-container {
+    background: linear-gradient(135deg, #eceeef 50%, #3E78B2 50%);
 }
 
 @media (max-width: 768px) {
@@ -455,6 +463,7 @@ body {
         padding: 20px 14px 0;
         border-radius: 0;
         box-shadow: none;
+        
     }
 
     .container.group-chat-container {
@@ -1785,6 +1794,7 @@ button:hover, .main-btn:hover {
     position: relative;
     display: flex;
     flex-direction: column;
+    
 }
 
 .calendar-page h2 {
