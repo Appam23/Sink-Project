@@ -134,10 +134,9 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
         <label for="calendar-view-select" class="calendar-view-label">View</label>
         <select id="calendar-view-select" class="calendar-view-select" aria-label="Calendar view">
           <option value="Month" selected>Month</option>
-          <option value="List">List</option>
-          <option value="Day">Day</option>
+          <option value="Upcoming">Upcoming</option>
+          <option value="Previous">Previous</option>
         </select>
-        <select id="calendar-day-select" class="calendar-day-select hidden" aria-label="Select day"></select>
       </div>
       <h2>Calendar</h2>
     </div>
@@ -148,7 +147,6 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
   container.appendChild(page);
 
   const viewSelect = page.querySelector('#calendar-view-select');
-  const daySelect = page.querySelector('#calendar-day-select');
   const viewContent = page.querySelector('#calendar-view-content');
 
   // Render events
@@ -229,6 +227,30 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
     const parsed = new Date(`2000-01-01 ${String(timeText || '').trim()}`);
     if (Number.isNaN(parsed.getTime())) return Number.MAX_SAFE_INTEGER;
     return (parsed.getHours() * 60) + parsed.getMinutes();
+  }
+
+  function normalizeIsoDate(value) {
+    const iso = String(value || '').trim();
+    return isIsoDate(iso) ? iso : '';
+  }
+
+  function normalizeTime24(value) {
+    const time24 = String(value || '').trim();
+    if (/^\d{2}:\d{2}$/.test(time24)) return time24;
+
+    const parsed = new Date(`2000-01-01 ${String(value || '').trim()}`);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function getEventStartMillis(eventData) {
+    const dateIso = normalizeIsoDate(eventData.dateISO) || toDateInputFromEvent(eventData);
+    const time24 = normalizeTime24(eventData.time24) || normalizeTime24(eventData.time);
+    if (!dateIso || !time24) return Number.NaN;
+
+    const parsed = new Date(`${dateIso}T${time24}:00`);
+    const millis = parsed.getTime();
+    return Number.isFinite(millis) ? millis : Number.NaN;
   }
 
   function getEventsForDay(dayKey) {
@@ -403,67 +425,83 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
     });
   }
 
-  function syncDaySelectOptions() {
-    if (!daySelect) return;
+  function renderPreviousEventRows(listContainer, eventItems, emptyMessage = 'No previous events yet.') {
+    if (!listContainer) return;
+    if (!Array.isArray(eventItems) || eventItems.length === 0) {
+      listContainer.innerHTML = `<div class="no-events">${escapeHtml(emptyMessage)}</div>`;
+      return;
+    }
 
-    const countsByDay = new Map();
-    events.forEach((event) => {
-      const key = normalizeMonthDay(event.date);
-      if (!key) return;
-      countsByDay.set(key, (countsByDay.get(key) || 0) + 1);
+    listContainer.innerHTML = '';
+    eventItems.forEach((event) => {
+      const attendeeUsers = getAttendeeUsers(event);
+      const attendeeDisplayNames = attendeeUsers.map((userId) => getDisplayNameForUser(userId));
+      const attendeeSummary = attendeeDisplayNames.length > 0
+        ? attendeeDisplayNames.join(', ')
+        : 'No attendees';
+
+      const eventRow = document.createElement('div');
+      eventRow.className = 'event-row previous-event-row';
+      eventRow.innerHTML = `
+        <div class="event-date">${escapeHtml(event.date)}</div>
+        <div class="event-details">
+          <div class="event-name">${escapeHtml(event.name)}</div>
+          <div class="event-location">${escapeHtml(event.room)}</div>
+          <div class="event-attendees-empty">Attended: ${escapeHtml(attendeeSummary)}</div>
+        </div>
+        <div class="event-time">
+          <div>${escapeHtml(event.time)}</div>
+        </div>
+      `;
+
+      listContainer.appendChild(eventRow);
     });
-
-    if (!countsByDay.has(selectedDayKey)) {
-      countsByDay.set(selectedDayKey, 0);
-    }
-    if (countsByDay.size === 0) {
-      countsByDay.set(todayKey, 0);
-      selectedDayKey = todayKey;
-    }
-
-    const sortedKeys = Array.from(countsByDay.keys()).sort((a, b) => toDaySortValue(a) - toDaySortValue(b));
-
-    daySelect.innerHTML = '';
-    sortedKeys.forEach((key) => {
-      const opt = document.createElement('option');
-      const count = countsByDay.get(key) || 0;
-      opt.value = key;
-      opt.textContent = count > 0 ? `${key} (${count})` : key;
-      daySelect.appendChild(opt);
-    });
-
-    if (!sortedKeys.includes(selectedDayKey)) {
-      selectedDayKey = sortedKeys[0];
-    }
-    daySelect.value = selectedDayKey;
   }
 
-  function renderListView() {
+  function getUpcomingEvents() {
+    const nowMillis = Date.now();
+    return events
+      .filter((event) => {
+        if (!Number.isFinite(event.startAtValue)) return true;
+        return event.startAtValue >= nowMillis;
+      })
+      .slice()
+      .sort((a, b) => {
+        const aStart = Number.isFinite(a.startAtValue) ? a.startAtValue : Number.MAX_SAFE_INTEGER;
+        const bStart = Number.isFinite(b.startAtValue) ? b.startAtValue : Number.MAX_SAFE_INTEGER;
+        if (aStart !== bStart) return aStart - bStart;
+        return a.createdAtValue - b.createdAtValue;
+      });
+  }
+
+  function getPreviousEvents() {
+    const nowMillis = Date.now();
+    return events
+      .filter((event) => Number.isFinite(event.startAtValue) && event.startAtValue < nowMillis)
+      .slice()
+      .sort((a, b) => {
+        if (a.startAtValue !== b.startAtValue) return b.startAtValue - a.startAtValue;
+        return b.createdAtValue - a.createdAtValue;
+      });
+  }
+
+  function renderUpcomingView() {
     if (!viewContent) return;
     const list = document.createElement('div');
     list.className = 'events-list';
-    renderEventRows(list, events, 'No events yet. Add one to get started!');
+    renderEventRows(list, getUpcomingEvents(), 'No upcoming events yet. Add one to get started!');
     viewContent.innerHTML = '';
     viewContent.appendChild(list);
   }
 
-  function renderDayView() {
+  function renderPreviousView() {
     if (!viewContent) return;
-    const wrapper = document.createElement('div');
-    wrapper.className = 'calendar-day-view';
-
-    const title = document.createElement('div');
-    title.className = 'calendar-day-title';
-    title.textContent = `Events for ${selectedDayKey}`;
-    wrapper.appendChild(title);
-
     const list = document.createElement('div');
-    list.className = 'events-list day-events-list';
-    renderEventRows(list, getEventsForDay(selectedDayKey), `No events on ${selectedDayKey}.`);
-    wrapper.appendChild(list);
+    list.className = 'events-list';
+    renderPreviousEventRows(list, getPreviousEvents(), 'No previous events yet.');
 
     viewContent.innerHTML = '';
-    viewContent.appendChild(wrapper);
+    viewContent.appendChild(list);
   }
 
   function renderMonthView() {
@@ -552,7 +590,6 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
 
       cell.addEventListener('click', () => {
         selectedDayKey = dayKey;
-        syncDaySelectOptions();
         renderMonthView();
       });
 
@@ -581,23 +618,20 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
   }
 
   function renderCurrentView() {
-    if (!viewSelect || !daySelect) return;
+    if (!viewSelect) return;
 
     currentView = viewSelect.value || 'Month';
-    if (currentView === 'Day') {
-      daySelect.classList.remove('hidden');
-      syncDaySelectOptions();
-      renderDayView();
+    if (currentView === 'Previous') {
+      renderPreviousView();
       return;
     }
 
-    daySelect.classList.add('hidden');
     if (currentView === 'Month') {
       renderMonthView();
       return;
     }
 
-    renderListView();
+    renderUpcomingView();
   }
 
   const eventsQuery = query(
@@ -620,6 +654,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
           dateISO: String(data.dateISO || ''),
           time24: String(data.time24 || ''),
           attendees: Array.isArray(data.attendees) ? data.attendees : [],
+          startAtValue: getEventStartMillis(data),
           createdAtValue: getCreatedAtValue(data),
         };
       })
@@ -636,22 +671,6 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
 
   if (viewSelect) {
     viewSelect.addEventListener('change', () => {
-      renderCurrentView();
-    });
-  }
-
-  if (daySelect) {
-    daySelect.addEventListener('change', (event) => {
-      const nextKey = normalizeMonthDay(event.target.value);
-      if (!nextKey) return;
-      selectedDayKey = nextKey;
-
-      const [monthText] = nextKey.split('/');
-      const monthNumber = Number(monthText || 0);
-      if (Number.isFinite(monthNumber) && monthNumber >= 1 && monthNumber <= 12) {
-        selectedMonthAnchor = new Date(selectedMonthAnchor.getFullYear(), monthNumber - 1, 1);
-      }
-
       renderCurrentView();
     });
   }
