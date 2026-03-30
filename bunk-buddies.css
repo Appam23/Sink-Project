@@ -82,13 +82,21 @@
     background: none;
     border: none;
     outline: none;
+    -webkit-appearance: none;
+    appearance: none;
     padding: 0 10px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     touch-action: manipulation;
+}
+
+.profile-footer,
+.profile-footer .footer-btn,
+.profile-footer .footer-btn * {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
 .footer-icon {
@@ -356,12 +364,12 @@
     height: 8px;
     border-radius: 50%;
     background: var(--chip-accent);
-    box-shadow: 0 0 0 3px rgba(89, 185, 255, 0.18);
+    box-shadow: 0 0 0 3px rgba(178, 136, 192, 0.18);
 }
 
 .welcome-chip.chip-tasks { --chip-accent: #ff9f1c; }
 .welcome-chip.chip-calendar { --chip-accent: #7ed957; }
-.welcome-chip.chip-chat { --chip-accent: #59b9ff; }
+.welcome-chip.chip-chat { --chip-accent: #B288C0; }
 .welcome-chip.chip-home { --chip-accent: #47d9ca; }
 
 @keyframes welcomeFlowSlide {
@@ -423,6 +431,14 @@ body {
     overflow-x: hidden;
 }
 
+body.home-page-active {
+    background: #ffffff;
+}
+
+html.home-page-active {
+    background: #ffffff;
+}
+
 
 .container {
     background: #ffffff;
@@ -451,6 +467,17 @@ body {
     body {
         background: #fff;
         justify-content: flex-start;
+    }
+
+    html.home-page-active,
+    body.home-page-active {
+        min-height: 100%;
+        background-color: #eceeef !important;
+        background-image: linear-gradient(180deg, #eceeef 0 50%, #3E78B2 50% 100%) !important;
+    }
+
+    .container.home-container {
+        background: linear-gradient(135deg, #eceeef 50%, #3E78B2 50%);
     }
 
     .container {
@@ -529,6 +556,7 @@ body {
 
 .container.home-container {
     overflow: hidden;
+    overscroll-behavior: none;
 }
 
 .container.home-container .home-page {
@@ -543,6 +571,9 @@ body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     margin-bottom: 0;
     padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
@@ -1864,12 +1895,15 @@ button:hover, .main-btn:hover {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
 .container.calendar-container .events-list {
     max-height: none;
     margin-bottom: 0;
+    padding-right: 0;
+    box-sizing: border-box;
 }
 
 @media (min-width: 769px) {
@@ -1926,6 +1960,7 @@ button:hover, .main-btn:hover {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .calendar-month-grid {
@@ -1933,6 +1968,8 @@ button:hover, .main-btn:hover {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 6px;
     margin-bottom: 14px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .calendar-weekday {
@@ -2184,7 +2221,7 @@ button:hover, .main-btn:hover {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 6px;
+    gap: 5px;
 }
 
 .attend-event-btn {
@@ -2204,39 +2241,84 @@ button:hover, .main-btn:hover {
     cursor: default;
 }
 
-.event-actions {
+.event-actions-menu {
+    position: relative;
     display: flex;
-    flex-direction: row;
-    gap: 5px;
-    align-items: flex-end;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.event-actions-toggle {
+    min-width: 30px;
+    height: 30px;
+    border: 1px solid #d2dbe2;
+    border-radius: 999px;
+    background: #fff;
+    color: #325162;
+    font-size: 20px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+}
+
+.event-actions-toggle:hover {
+    background: #f2f6f9;
+    color: #183446;
+}
+
+.event-actions-toggle[aria-expanded="true"] {
+    background: #e8eff4;
+    border-color: #b9c9d6;
+}
+
+.event-actions-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 20;
+    min-width: 112px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #fff;
+    border: 1px solid #d9e3ea;
+    border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+    padding: 4px;
+}
+
+.event-actions-dropdown.hidden {
+    display: none;
 }
 
 .edit-event-btn {
-    background: #14591D;
-    color: #fff;
+    background: #f4f8fb;
+    color: #19384a;
     border: none;
     border-radius: 6px;
-    padding: 5px 10px;
+    padding: 6px 10px;
     cursor: pointer;
-    font-size: 0.9em;
+    font-size: 0.82em;
+    text-align: left;
 }
 
 .edit-event-btn:hover {
-    background: #0A210F;
+    background: #e5eff7;
 }
 
 .delete-event-btn {
-    background: #ff6b6b;
-    color: #fff;
+    background: #fff5f5;
+    color: #8e2020;
     border: none;
     border-radius: 6px;
-    padding: 5px 7px;
+    padding: 6px 10px;
     cursor: pointer;
-    font-size: 0.72em;
+    font-size: 0.82em;
+    text-align: left;
 }
 
 .delete-event-btn:hover {
-    background: #ff5252;
+    background: #ffe7e7;
 }
 
 .add-event-btn {
@@ -3034,6 +3116,66 @@ button:hover, .main-btn:hover {
     color: #fff;
 }
 
+#attach-file-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid #8f6fa3;
+    background: linear-gradient(135deg, #a477bb 0%, #6ea8d9 100%);
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(64, 35, 86, 0.22);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    position: relative;
+    transition: transform 0.14s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+#attach-file-btn::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffd166;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
+
+#attach-file-btn:hover {
+    background: linear-gradient(135deg, #b385ca 0%, #83b8e4 100%);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(64, 35, 86, 0.28);
+}
+
+#attach-file-btn:focus-visible {
+    outline: 3px solid #47d9ca;
+    outline-offset: 2px;
+}
+
+#attach-file-btn:disabled {
+    opacity: 0.55;
+    transform: none;
+    box-shadow: none;
+    cursor: default;
+}
+
+.attach-file-icon {
+    font-size: 1.18rem;
+    line-height: 1;
+}
+
+#chat-send-btn {
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-weight: 700;
+}
+
 .chat-upload-status {
     order: 2;
     min-height: 18px;
@@ -3246,25 +3388,65 @@ hr{
 }
 
 @media (max-width: 768px) {
+    /* iOS may synthesize hover on tap; keep footer hover neutral to avoid blue flash. */
+    .profile-footer .footer-btn:hover,
+    .footer-btn:hover {
+        background: transparent !important;
+        color: inherit !important;
+    }
+
     /* Match mobile tap feedback with desktop hover palette. */
+    .footer-btn[data-role="home"]:active,
+    .footer-btn:nth-child(1):active,
     .profile-footer .footer-btn:nth-child(1):active {
-        background: #59b9ff;
-        color: #fff;
+        background: #59b9ff !important;
+        color: #fff !important;
     }
 
+    .footer-btn[data-role="calendar"]:active,
+    .footer-btn:nth-child(2):active,
     .profile-footer .footer-btn:nth-child(2):active {
-        background: #14591D;
-        color: #fff;
+        background: #14591D !important;
+        color: #fff !important;
     }
 
+    .footer-btn[data-role="tasks"]:active,
+    .footer-btn:nth-child(3):active,
     .profile-footer .footer-btn:nth-child(3):active {
-        background: #FFBF69;
-        color: #fff;
+        background: #FFBF69 !important;
+        color: #fff !important;
     }
 
+    .footer-btn[data-role="chat"]:active,
+    .footer-btn:nth-child(4):active,
     .profile-footer .footer-btn:nth-child(4):active {
-        background: #E4B7E5;
-        color: #fff;
+        background: #E4B7E5 !important;
+        color: #fff !important;
+    }
+
+    /* Also apply to focus-visible for keyboard navigation */
+    .footer-btn:nth-child(1):focus-visible,
+    .profile-footer .footer-btn:nth-child(1):focus-visible {
+        background: #59b9ff !important;
+        color: #fff !important;
+    }
+
+    .footer-btn:nth-child(2):focus-visible,
+    .profile-footer .footer-btn:nth-child(2):focus-visible {
+        background: #14591D !important;
+        color: #fff !important;
+    }
+
+    .footer-btn:nth-child(3):focus-visible,
+    .profile-footer .footer-btn:nth-child(3):focus-visible {
+        background: #FFBF69 !important;
+        color: #fff !important;
+    }
+
+    .footer-btn:nth-child(4):focus-visible,
+    .profile-footer .footer-btn:nth-child(4):focus-visible {
+        background: #E4B7E5 !important;
+        color: #fff !important;
     }
 }
 

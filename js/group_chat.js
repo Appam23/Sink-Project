@@ -246,7 +246,9 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
         <input type="text" id="chat-message-input" class="chat-message-input" placeholder="Type a message..." />
       </div>
       <input type="file" id="chat-file-input" style="display: none;" />
-      <button type="button" id="attach-file-btn">📎</button>
+      <button type="button" id="attach-file-btn" aria-label="Attach image" title="Attach image">
+        <span class="attach-file-icon" aria-hidden="true">🖼️</span>
+      </button>
       <button type="submit" id="chat-send-btn">Send</button>
     </form>
     

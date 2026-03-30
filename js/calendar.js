@@ -290,9 +290,20 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
           <div>${escapeHtml(event.time)}</div>
           <button type="button" class="attend-event-btn">Attend</button>
           ${canManageEvent ? `
-            <div class="event-actions">
-              <button type="button" class="edit-event-btn">Edit</button>
-              <button type="button" class="delete-event-btn">Delete</button>
+            <div class="event-actions-menu">
+              <button
+                type="button"
+                class="event-actions-toggle"
+                aria-label="Open event actions"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >
+                &middot;&middot;&middot;
+              </button>
+              <div class="event-actions-dropdown hidden" role="menu" aria-label="Event actions">
+                <button type="button" class="edit-event-btn" role="menuitem">Edit</button>
+                <button type="button" class="delete-event-btn" role="menuitem">Delete</button>
+              </div>
             </div>
           ` : ''}
         </div>
@@ -306,6 +317,16 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
       const hideAllPopovers = () => {
         const rows = listContainer.querySelectorAll('.event-attendees-popover');
         rows.forEach((el) => el.classList.add('hidden'));
+      };
+
+      const hideAllActionMenus = () => {
+        const dropdowns = listContainer.querySelectorAll('.event-actions-dropdown');
+        dropdowns.forEach((el) => el.classList.add('hidden'));
+
+        const toggles = listContainer.querySelectorAll('.event-actions-toggle');
+        toggles.forEach((toggle) => {
+          toggle.setAttribute('aria-expanded', 'false');
+        });
       };
 
       const togglePopover = () => {
@@ -329,6 +350,25 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
         listContainer.dataset.popoverDismissBound = 'true';
         listContainer.addEventListener('click', () => {
           hideAllPopovers();
+          hideAllActionMenus();
+        });
+      }
+
+      const actionsToggle = eventRow.querySelector('.event-actions-toggle');
+      const actionsDropdown = eventRow.querySelector('.event-actions-dropdown');
+      if (actionsToggle && actionsDropdown) {
+        actionsToggle.addEventListener('click', (eventClick) => {
+          eventClick.stopPropagation();
+          const shouldOpen = actionsDropdown.classList.contains('hidden');
+          hideAllActionMenus();
+          if (shouldOpen) {
+            actionsDropdown.classList.remove('hidden');
+            actionsToggle.setAttribute('aria-expanded', 'true');
+          }
+        });
+
+        actionsDropdown.addEventListener('click', (eventClick) => {
+          eventClick.stopPropagation();
         });
       }
 
@@ -405,6 +445,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
       const editBtn = eventRow.querySelector('.edit-event-btn');
       if (editBtn) {
         editBtn.addEventListener('click', () => {
+          hideAllActionMenus();
           showEventModal(container, eventsCollectionRef, currentUser, null, apartmentCode, apartmentMembers, event);
         });
       }
@@ -412,6 +453,7 @@ async function renderCalendarPage(container, apartmentCode, currentUser, apartme
       const deleteBtn = eventRow.querySelector('.delete-event-btn');
       if (deleteBtn) {
         deleteBtn.addEventListener('click', async () => {
+          hideAllActionMenus();
           try {
             await deleteDoc(doc(eventsCollectionRef, event.id));
           } catch (error) {

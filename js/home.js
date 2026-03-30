@@ -101,6 +101,8 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   // Clear container
   container.innerHTML = '';
   container.classList.add('home-container');
+  document.body.classList.add('home-page-active');
+  document.documentElement.classList.add('home-page-active');
 
   const code = apartmentCode;
   let members = Array.isArray(apartmentData && apartmentData.members) ? [...apartmentData.members] : [];
@@ -728,6 +730,8 @@ async function renderHomePage(container, userName = 'You', apartmentCode = null,
   );
 
   const cleanupNotifications = () => {
+    document.body.classList.remove('home-page-active');
+    document.documentElement.classList.remove('home-page-active');
     if (typeof unsubscribeNotifications === 'function') {
       unsubscribeNotifications();
       unsubscribeNotifications = null;
