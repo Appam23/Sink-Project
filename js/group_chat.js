@@ -260,6 +260,7 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   const chatBox = page.querySelector('#chat-box');
   const backBtn = page.querySelector('#chat-back-btn');
   const chatForm = page.querySelector('#chat-input-form');
+  const chatHeader = page.querySelector('.chat-header');
   const messageInput = page.querySelector('#chat-message-input');
   const replyPreview = page.querySelector('#chat-reply-preview');
   const replySource = page.querySelector('#chat-reply-source');
@@ -273,6 +274,9 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
   let messageActionMenu = null;
   let activeMessageForMenu = null;
   let activeMessageBubble = null;
+  const visualViewportRef = window.visualViewport || null;
+  let detachViewportListeners = null;
+  let layoutObserver = null;
 
   const previousBodyOverflow = document.body.style.overflow;
   const previousBodyOverscrollBehavior = document.body.style.overscrollBehavior;
@@ -443,6 +447,113 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
       }
     };
     requestAnimationFrame(tick);
+  }
+
+  function syncChatViewportHeight() {
+    let keyboardOverlap = 0;
+
+    if (visualViewportRef) {
+      const pageRect = page.getBoundingClientRect();
+      const visibleBottom = visualViewportRef.offsetTop + visualViewportRef.height;
+      keyboardOverlap = Math.max(0, pageRect.bottom - visibleBottom);
+    } else {
+      const layoutHeight = window.innerHeight;
+      const viewportHeight = document.documentElement.clientHeight || layoutHeight;
+      keyboardOverlap = Math.max(0, layoutHeight - viewportHeight);
+    }
+
+    page.style.setProperty('--chat-keyboard-offset', `${Math.round(keyboardOverlap)}px`);
+
+    if (window.scrollY !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function updateChatLayoutMetrics() {
+    const headerHeight = chatHeader instanceof HTMLElement ? chatHeader.offsetHeight : 0;
+    const inputHeight = chatForm instanceof HTMLElement ? chatForm.offsetHeight : 0;
+
+    if (headerHeight > 0) {
+      page.style.setProperty('--chat-header-offset', `${headerHeight}px`);
+    }
+
+    if (inputHeight > 0) {
+      page.style.setProperty('--chat-input-offset', `${inputHeight}px`);
+    }
+  }
+
+  function attachViewportListeners() {
+    const onViewportChange = () => {
+      syncChatViewportHeight();
+      updateChatLayoutMetrics();
+      if (keepPinnedToBottom) {
+        keepChatAtBottomFor(220);
+      }
+    };
+
+    syncChatViewportHeight();
+    updateChatLayoutMetrics();
+    window.addEventListener('resize', onViewportChange);
+
+    if (messageInput instanceof HTMLInputElement) {
+      const onInputFocus = () => {
+        onViewportChange();
+        requestAnimationFrame(onViewportChange);
+        setTimeout(onViewportChange, 140);
+      };
+
+      const onInputBlur = () => {
+        onViewportChange();
+        setTimeout(onViewportChange, 140);
+      };
+
+      messageInput.addEventListener('focus', onInputFocus);
+      messageInput.addEventListener('blur', onInputBlur);
+
+      page.__chatInputFocusHandler = onInputFocus;
+      page.__chatInputBlurHandler = onInputBlur;
+    }
+
+    if (visualViewportRef) {
+      visualViewportRef.addEventListener('resize', onViewportChange);
+      visualViewportRef.addEventListener('scroll', onViewportChange);
+    }
+
+    detachViewportListeners = () => {
+      window.removeEventListener('resize', onViewportChange);
+      if (messageInput instanceof HTMLInputElement) {
+        const onInputFocus = page.__chatInputFocusHandler;
+        const onInputBlur = page.__chatInputBlurHandler;
+        if (typeof onInputFocus === 'function') {
+          messageInput.removeEventListener('focus', onInputFocus);
+        }
+        if (typeof onInputBlur === 'function') {
+          messageInput.removeEventListener('blur', onInputBlur);
+        }
+        delete page.__chatInputFocusHandler;
+        delete page.__chatInputBlurHandler;
+      }
+      if (visualViewportRef) {
+        visualViewportRef.removeEventListener('resize', onViewportChange);
+        visualViewportRef.removeEventListener('scroll', onViewportChange);
+      }
+    };
+  }
+
+  attachViewportListeners();
+
+  if (typeof ResizeObserver === 'function') {
+    layoutObserver = new ResizeObserver(() => {
+      updateChatLayoutMetrics();
+    });
+
+    if (chatHeader instanceof HTMLElement) {
+      layoutObserver.observe(chatHeader);
+    }
+
+    if (chatForm instanceof HTMLElement) {
+      layoutObserver.observe(chatForm);
+    }
   }
 
   function getMessageCreatedAtValue(messageData) {
@@ -918,6 +1029,10 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
 
   const cleanupListener = () => {
     markChatAsSeen(apartmentCode, userName);
+    if (typeof detachViewportListeners === 'function') {
+      detachViewportListeners();
+      detachViewportListeners = null;
+    }
     document.removeEventListener('touchmove', blockGlobalTouchScroll);
     document.removeEventListener('wheel', blockGlobalWheelScroll);
     document.body.style.overflow = previousBodyOverflow;
@@ -927,6 +1042,10 @@ async function renderGroupChatPage(container, userName = 'You', apartmentCode = 
     if (typeof unsubscribeMessages === 'function') {
       unsubscribeMessages();
       unsubscribeMessages = null;
+    }
+    if (layoutObserver) {
+      layoutObserver.disconnect();
+      layoutObserver = null;
     }
   };
 

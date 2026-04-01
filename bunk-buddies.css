@@ -495,6 +495,13 @@ html.home-page-active {
 
     .container.group-chat-container {
         padding: 0;
+        position: fixed;
+        inset: 0;
+        margin: 0;
+        width: 100%;
+        height: 100dvh;
+        min-height: 100dvh;
+        max-height: 100dvh;
     }
 
     h2 {
@@ -2853,16 +2860,23 @@ button:hover, .main-btn:hover {
     box-sizing: border-box;
     background: #B288C0;
     color: #fff;
+    position: relative;
+    --chat-header-offset: 84px;
+    --chat-input-offset: 76px;
+    --chat-keyboard-offset: 0px;
 }
 
 .chat-header {
-    position: sticky;
+    position: absolute;
     top: 0;
+    left: 0;
+    right: 0;
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
     min-height: 64px;
-    padding: 10px 16px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
     background: #c266e1;
     color: #fff;
     border-bottom: 1px solid rgba(178,136,192,0.2);
@@ -2909,8 +2923,11 @@ button:hover, .main-btn:hover {
 }
 
 .chat-box {
-    flex: 1 1 auto;
-    min-height: 0;
+    position: absolute;
+    top: var(--chat-header-offset);
+    bottom: calc(var(--chat-input-offset) + var(--chat-keyboard-offset));
+    left: 0;
+    right: 0;
     padding: 12px;
     overflow-y: auto;
     overscroll-behavior-y: contain;
@@ -3013,10 +3030,12 @@ button:hover, .main-btn:hover {
 
 .chat-input-form {
     display: flex;
-    order: 3;
-    margin-top: auto;
-    position: sticky;
-    bottom: 0;
+    flex: 0 0 auto;
+    margin-top: 0;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--chat-keyboard-offset);
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
     border-top: 1px solid #e0e0e0;
     background: #fff;
